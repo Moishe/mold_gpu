@@ -20,5 +20,5 @@ void main() {
     pixPos.y *= screen.y;
     
     gl_Position = pixPos;
-    //gl_FrontColor = vec4(1.0, 1.0, 1.0, 1.0);
+    gl_FrontColor = vec4(1.0, 1.0, 1.0, 1.0);
 }

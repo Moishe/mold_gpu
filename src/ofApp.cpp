@@ -2,9 +2,8 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    particleSize = 0.0f;
-    timeStep = 0.00015f;
-    numParticles = 256 * 512;
+    timeStep = 0.0015f;
+    numParticles = 1024 * 1024;
     
     width = ofGetWindowWidth();
     height = ofGetWindowHeight();
@@ -45,12 +44,15 @@ void ofApp::setup(){
             pos[i*3 + 0] = 0.5 + cos(float(i) / float(numParticles) * 6.28) / 3;
             pos[i*3 + 1] = 0.5 + sin(float(i) / float(numParticles) * 6.28) / 3;
 
-            pos[i*3 + 0] = 0.1 + ofRandom(1) * 0.8;
-            pos[i*3 + 1] = 0.1 + ofRandom(1) * 0.8;
+            pos[i*3 + 0] = 0.40 + ofRandom(1) * 0.2;
+            pos[i*3 + 1] = 0.40 + ofRandom(1) * 0.2;
 
-            //pos[i*3 + 0] = 0.5;
-            //pos[i*3 + 1] = 0.5;
-
+            //pos[i*3 + 0] = float(x) / float(textureRes);
+            //pos[i*3 + 1] = float(y) / float(textureRes);
+/*
+            pos[i*3 + 0] = 0.5;
+            pos[i*3 + 1] = 0.5;
+*/
             pos[i*3 + 2] = 0.0;
         }
     }
@@ -92,9 +94,8 @@ void ofApp::setup(){
         updateRender.setUniformTexture("prevTex", renderFBO.src->getTexture(), 1);
         updateRender.setUniform1i("resolution", (float)textureRes);
         updateRender.setUniform2f("screen", (float)width, (float)height);
-        updateRender.setUniform1f("size", (float)particleSize);
         ofPushStyle();
-        ofEnableBlendMode( OF_BLENDMODE_ADD );
+        ofEnableBlendMode( OF_BLENDMODE_DISABLED );
         ofSetColor(255);
 
         mesh.draw();
@@ -177,10 +178,9 @@ void ofApp::update(){
     updateRender.setUniformTexture("prevTex", renderFBO.src->getTexture(), 2);
     updateRender.setUniform1i("resolution", (float)textureRes);
     updateRender.setUniform2f("screen", (float)width, (float)height);
-    updateRender.setUniform1f("size", (float)particleSize); 
     
     ofPushStyle();
-    ofEnableBlendMode( OF_BLENDMODE_ADD );
+    ofEnableBlendMode( OF_BLENDMODE_ALPHA );
     ofSetColor(255);
 
     mesh.draw();
@@ -198,7 +198,7 @@ void ofApp::update(){
 void ofApp::draw(){
     ofBackground(0);
     
-    ofSetColor(100,255,255);
+    ofSetColor(255,255,255);
     renderFBO.dst->draw(0,0);
     
     ofSetColor(255);

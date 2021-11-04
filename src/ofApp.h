@@ -89,13 +89,9 @@ public:
 
 	pingPongBuffer renderFBO;
 
-	ofImage sparkImg;
-
 	float   timeStep;
-	float   particleSize;
 
 	int     width, height;
-	int     imgWidth, imgHeight;
 	int     numParticles;
 	int     textureRes;
 
