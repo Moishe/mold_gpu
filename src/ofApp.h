@@ -85,7 +85,7 @@ public:
 
 	pingPongBuffer posPingPong;
 	pingPongBuffer velPingPong;
-    pingPongBuffer pherPingPong;
+    pingPongBuffer colorPingPong;
 
 	pingPongBuffer renderFBO;
 

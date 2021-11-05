@@ -12,7 +12,7 @@ void main()
 {
     vec2 st = gl_TexCoord[0].st;
     vec3 result = texture2DRect(image, st).rgb;
-    result = max(result - 0.0004, vec3(0,0,0));
+    result = max(result - 0.04, vec3(0,0,0));
     gl_FragColor = vec4(result, 1.0);
 /*
     vec2 tex_offset = 1.0 / screen; // gets size of single texel

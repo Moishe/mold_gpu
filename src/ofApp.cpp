@@ -41,18 +41,25 @@ void ofApp::setup(){
         for (int y = 0; y < textureRes; y++){
             int i = textureRes * y + x;
 
-            pos[i*3 + 0] = 0.5 + cos(float(i) / float(numParticles) * 6.28) / 3;
-            pos[i*3 + 1] = 0.5 + sin(float(i) / float(numParticles) * 6.28) / 3;
+            /*
+            pos[i*3 + 0] = 0.5 + cos(float(i) / float(numParticles) * PI * 2) / 3;
+            pos[i*3 + 1] = 0.5 + sin(float(i) / float(numParticles) * PI * 2) / 3;
 
             pos[i*3 + 0] = 0.40 + ofRandom(1) * 0.2;
             pos[i*3 + 1] = 0.40 + ofRandom(1) * 0.2;
 
-            //pos[i*3 + 0] = float(x) / float(textureRes);
-            //pos[i*3 + 1] = float(y) / float(textureRes);
-/*
-            pos[i*3 + 0] = 0.5;
+            pos[i*3 + 0] = float(x) / float(textureRes);
+            pos[i*3 + 1] = float(y) / float(textureRes);
+
+             pos[i*3 + 0] = 0.5;
             pos[i*3 + 1] = 0.5;
 */
+            
+            float r = ofRandom(1) * 0.1;
+            float t = ofRandom(1) * PI * 2;
+            pos[i * 3 + 0] = 0.5 + cos(t) * r;
+            pos[i * 3 + 1] = 0.5 + sin(t) * r;
+            
             pos[i*3 + 2] = 0.0;
         }
     }
@@ -71,6 +78,16 @@ void ofApp::setup(){
     velPingPong.src->getTexture().loadData(vel.data(), textureRes, textureRes, GL_RGB);
     velPingPong.dst->getTexture().loadData(vel.data(), textureRes, textureRes, GL_RGB);
     
+    vector<float> colors(numParticles * 3);
+    for (int i = 0; i < numParticles; i++) {
+        colors[i * 3 + 0] = ofRandom(1);
+        colors[i * 3 + 1] = ofRandom(1);
+        colors[i * 3 + 2] = ofRandom(1);
+    }
+    colorPingPong.allocate(textureRes, textureRes, GL_RGB32F);
+    colorPingPong.src->getTexture().loadData(colors.data(), textureRes, textureRes, GL_RGB);
+    colorPingPong.dst->getTexture().loadData(colors.data(), textureRes, textureRes, GL_RGB);
+
     // Allocate the final
     renderFBO.allocate(width, height, GL_RGB32F);
     renderFBO.dst->begin();
