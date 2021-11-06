@@ -27,7 +27,7 @@ public:
 	void allocate( int _width, int _height, int _internalformat = GL_RGBA){
 		// Allocate
 		for(int i = 0; i < 2; i++){
-			FBOs[i].allocate(_width,_height, _internalformat );
+			FBOs[i].allocate(_width, _height, _internalformat );
 			FBOs[i].getTexture().setTextureMinMagFilter(GL_NEAREST, GL_NEAREST);
 		}
 
@@ -90,13 +90,14 @@ public:
 
     pingPongBuffer colorRenderFBO;
 	pingPongBuffer renderFBO;
+    
+    ofImage img;
 
 	float   timeStep;
 
 	int     width, height;
+    int     numParticlesSqrt;
 	int     numParticles;
-	int     textureRes;
-
 
 	ofVboMesh mesh;
 };

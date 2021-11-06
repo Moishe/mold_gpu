@@ -1,11 +1,12 @@
 #version 330
 
-// This fill the billboard made on the Geometry Shader with a texture
+// Fragment shader. Emit the color at the given location with very low alpha
 
 in vec2 vTexCoord;
+in vec4 vColor;
 
-out vec4 vFragColor;
+out vec4 fColor;
 
 void main() {
-    vFragColor = vec4(1.0, 1.0, 1.0, 0.01);
+    fColor = vec4(vColor.rgb, 0.01);
 }

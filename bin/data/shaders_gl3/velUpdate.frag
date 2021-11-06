@@ -1,9 +1,9 @@
 #version 330
-#define KERNEL_SIZE 9
 #define PI 3.1415926538
 
 uniform sampler2DRect velData;
 uniform sampler2DRect posData;
+uniform sampler2DRect colorData;
 uniform sampler2DRect trailData;
 
 uniform float timestep;
@@ -23,13 +23,15 @@ vec2 look_dir(vec2 pos, float dir, float d) {
 }
 
 void main(void){
+    float look_amt = PI / 6.0;
+    float turn_amt = PI / 6.0;
     vec2 pos = texture(posData, vTexCoord).xy;
     float dir = texture(velData, vTexCoord).x;
-    vec3 goal = vec3(1.0, 1.0, 1.0);
+    vec3 goal = texture(colorData, vTexCoord).rgb;
     
-    float d = 5.0 * timestep;
-    vec2 lp = look_dir(pos, dir + PI / 6.0, d);
-    vec2 rp = look_dir(pos, dir - PI / 6.0, d);
+    float d = length(1/screen) * 4;
+    vec2 lp = look_dir(pos, dir + look_amt, d);
+    vec2 rp = look_dir(pos, dir - look_amt, d);
     vec2 cp = look_dir(pos, dir, d);
 
     vec3 left = texture(trailData, lp).xyz;
@@ -41,9 +43,9 @@ void main(void){
     float cd = distance(goal, center);
 
     if (rd > cd && rd > ld) {
-        dir += PI / 6.0;
+        dir += turn_amt;
     } else if (ld > cd && ld > rd) {
-        dir -= PI / 6.0;
+        dir -= turn_amt;
     }
 
     vFragColor = vec4(dir,1.0,1.0,1.0);

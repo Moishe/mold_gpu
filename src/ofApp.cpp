@@ -2,11 +2,15 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    timeStep = 0.001f;
-    numParticles = 1024 * 1024;
+    img.load("/Volumes/fast-external/photos-to-mold/red-moon.jpg");
+
+    numParticlesSqrt = 256;
+    numParticles = numParticlesSqrt * numParticlesSqrt;
+
+    timeStep = 0.0001f;
     
-    width = ofGetWindowWidth();
-    height = ofGetWindowHeight();
+    width = img.getWidth(); //ofGetWindowWidth();
+    height = img.getHeight(); //ofGetWindowHeight();
     
     string shadersFolder;
     if(ofIsGLProgrammableRenderer()){
@@ -33,66 +37,46 @@ void ofApp::setup(){
 	updateRender.setGeometryOutputCount(1);
     updateRender.load(shadersFolder+"/render.vert", shadersFolder+"/render.frag", shadersFolder+"/render.geom");
     
-    // Seting the textures where the information ( position and velocity ) will be
-    textureRes = (int)sqrt((float)numParticles);
-    numParticles = textureRes * textureRes;
-    
-    // 1. Making arrays of float pixels with position information
+    // 1. Making arrays of float pixels with position & color information
     vector<float> pos(numParticles*3);
-    for (int x = 0; x < textureRes; x++){
-        for (int y = 0; y < textureRes; y++){
-            int i = textureRes * y + x;
-
-            pos[i*3 + 0] = float(x) / float(textureRes);
-            pos[i*3 + 1] = float(y) / float(textureRes);
-
-            pos[i*3 + 0] = 0.5 + cos(float(i) / float(numParticles) * PI * 2) / 3;
-            pos[i*3 + 1] = 0.5 + sin(float(i) / float(numParticles) * PI * 2) / 3;
-
-            /*
-            pos[i*3 + 0] = 0.5 + cos(float(i) / float(numParticles) * PI * 2) / 3;
-            pos[i*3 + 1] = 0.5 + sin(float(i) / float(numParticles) * PI * 2) / 3;
-
-            pos[i*3 + 0] = 0.40 + ofRandom(1) * 0.2;
-            pos[i*3 + 1] = 0.40 + ofRandom(1) * 0.2;
-
-            pos[i*3 + 0] = 0.5;
-            pos[i*3 + 1] = 0.5;
-
-            
-            float r = ofRandom(1) * 0.1;
-            float t = ofRandom(1) * PI * 2;
-            pos[i * 3 + 0] = 0.5 + cos(t) * r;
-            pos[i * 3 + 1] = 0.5 + sin(t) * r;
-             */
-            pos[i*3 + 2] = 0.0;
-        }
-    }
-    // Load this information in to the FBO's texture
-    posPingPong.allocate(textureRes, textureRes, GL_RGB32F);
-    posPingPong.src->getTexture().loadData(pos.data(), textureRes, textureRes, GL_RGB);
-    posPingPong.dst->getTexture().loadData(pos.data(), textureRes, textureRes, GL_RGB);
+    vector<float> colors(numParticles * 3);
+    int i = 0;
+    do {
+        float x = ofRandom(1);
+        float y = ofRandom(1);
+        int xx = int(x * float(width));
+        int yy = int(y * float(height));
+        int idx = xx + yy * width;
+        ofColor oc = img.getColor(xx, yy);
+        colors[i * 3 + 0] = oc.r / 256.0;
+        colors[i * 3 + 1] = oc.g / 256.0;
+        colors[i * 3 + 2] = oc.b / 256.0;
         
+        if ((colors[i * 3] + colors[i * 3 + 1] + colors[i * 3 + 2]) > (ofRandom(1) * 3.0)) {
+            pos[i * 3] = x;
+            pos[i * 3 + 1] = y;
+            i++;
+        }
+    } while (i < numParticles);
+    
+    posPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
+    posPingPong.src->getTexture().loadData(pos.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+    posPingPong.dst->getTexture().loadData(pos.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+
+    colorPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
+    colorPingPong.src->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+    colorPingPong.dst->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+
     vector<float> vel(numParticles*3);
     for (int i = 0; i < numParticles; i++){
-        vel[i*3 + 0] = ofRandom(1) * 6.28; //float(i) / float(numParticles) * 6.28 + 3.14;
+        vel[i*3 + 0] = ofRandom(1) * 6.28;
         vel[i*3 + 1] = 0;
         vel[i*3 + 2] = 0;
     }
-    velPingPong.allocate(textureRes, textureRes, GL_RGB32F);
-    velPingPong.src->getTexture().loadData(vel.data(), textureRes, textureRes, GL_RGB);
-    velPingPong.dst->getTexture().loadData(vel.data(), textureRes, textureRes, GL_RGB);
+    velPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
+    velPingPong.src->getTexture().loadData(vel.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+    velPingPong.dst->getTexture().loadData(vel.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
     
-    vector<float> colors(numParticles * 3);
-    for (int i = 0; i < numParticles; i++) {
-        colors[i * 3 + 0] = ofRandom(1);
-        colors[i * 3 + 1] = ofRandom(1);
-        colors[i * 3 + 2] = ofRandom(1);
-    }
-    colorPingPong.allocate(textureRes, textureRes, GL_RGB32F);
-    colorPingPong.src->getTexture().loadData(colors.data(), textureRes, textureRes, GL_RGB);
-    colorPingPong.dst->getTexture().loadData(colors.data(), textureRes, textureRes, GL_RGB);
-
     // Allocate the final
     renderFBO.allocate(width, height, GL_RGB32F);
     renderFBO.dst->begin();
@@ -100,8 +84,8 @@ void ofApp::setup(){
     renderFBO.dst->end();
 
     mesh.setMode(OF_PRIMITIVE_POINTS);
-    for(int x = 0; x < textureRes; x++){
-        for(int y = 0; y < textureRes; y++){
+    for(int x = 0; x < numParticlesSqrt; x++){
+        for(int y = 0; y < numParticlesSqrt; y++){
             mesh.addVertex({x,y,0});
             mesh.addTexCoord({x, y});
         }
@@ -113,11 +97,10 @@ void ofApp::setup(){
         ofClear(0,0,0,0);
         updateRender.begin();
         updateRender.setUniformTexture("posTex", posPingPong.dst->getTexture(), 0);
-        updateRender.setUniformTexture("prevTex", renderFBO.src->getTexture(), 1);
-        updateRender.setUniform1i("resolution", (float)textureRes);
+        updateRender.setUniformTexture("colorTex", colorPingPong.dst->getTexture(), 1);
         updateRender.setUniform2f("screen", (float)width, (float)height);
         ofPushStyle();
-        ofEnableBlendMode( OF_BLENDMODE_DISABLED );
+        ofEnableBlendMode( OF_BLENDMODE_ALPHA );
         ofSetColor(255);
 
         mesh.draw();
@@ -153,8 +136,8 @@ void ofApp::update(){
     updateVel.begin();
     updateVel.setUniformTexture("backbuffer", velPingPong.src->getTexture(), 0);
     updateVel.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
-    updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 2);
-    updateVel.setUniform1i("resolution", (int)textureRes); 
+    updateVel.setUniformTexture("colorData", colorPingPong.src->getTexture(), 2);
+    updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 3);
     updateVel.setUniform2f("screen", (float)width, (float)height);
     updateVel.setUniform1f("timestep", (float)timeStep);
 
@@ -176,11 +159,13 @@ void ofApp::update(){
     updatePos.setUniformTexture("prevPosData", posPingPong.src->getTexture(), 0); // Previus position
     updatePos.setUniformTexture("velData", velPingPong.src->getTexture(), 1);  // Velocity
     updatePos.setUniform1f("timestep",(float) timeStep );
+    updatePos.setUniform1f("locx", (float)ofRandom(1));
+    updatePos.setUniform1f("locy", (float)ofRandom(1));
     posPingPong.src->draw(0, 0);
     updatePos.end();
     posPingPong.dst->end();
     posPingPong.swap();
-    
+
     // Blur it
     for (int i = 0; i < 2; i++) {
         renderFBO.dst->begin();
@@ -200,8 +185,7 @@ void ofApp::update(){
     //ofClear(0,0,0,0);
     updateRender.begin();
     updateRender.setUniformTexture("posTex", posPingPong.dst->getTexture(), 0);
-    updateRender.setUniformTexture("prevTex", renderFBO.src->getTexture(), 2);
-    updateRender.setUniform1i("resolution", (float)textureRes);
+    updateRender.setUniformTexture("colorTex", colorPingPong.dst->getTexture(), 1);
     updateRender.setUniform2f("screen", (float)width, (float)height);
     
     ofPushStyle();
@@ -224,10 +208,11 @@ void ofApp::draw(){
     ofBackground(0);
     
     ofSetColor(255,255,255);
-    renderFBO.dst->draw(0,0);
-    
+    renderFBO.dst->draw(0,0, ofGetWindowWidth(), ofGetWindowHeight());
+    /*
     ofSetColor(255);
     ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()), 15,15);
+    */
 }
 
 //--------------------------------------------------------------
@@ -257,6 +242,13 @@ void ofApp::mousePressed(int x, int y, int button){
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
+    ofPixels pix;
+    renderFBO.dst->getTexture().readToPixels(pix);
+    ofImage img(pix);
+    std::string filename = "/Users/moishe/gen-images/saved-image-foobar";
+    //filename.append(gen_random(5));
+    filename.append(".jpg");
+    img.save(filename);
 
 }
 
