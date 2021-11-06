@@ -2,7 +2,7 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    timeStep = 0.0015f;
+    timeStep = 0.001f;
     numParticles = 1024 * 1024;
     
     width = ofGetWindowWidth();
@@ -19,10 +19,12 @@ void ofApp::setup(){
     if(ofIsGLProgrammableRenderer()){
         updatePos.load(shadersFolder+"/passthru.vert", shadersFolder+"/posUpdate.frag");
         updateVel.load(shadersFolder+"/passthru.vert", shadersFolder+"/velUpdate.frag");
+        updateBlur.load(shadersFolder+"/passthru.vert", shadersFolder+"/renderBlur.frag");
     }else{
         updatePos.load("",shadersFolder+"/posUpdate.frag");
         updateVel.load("",shadersFolder+"/velUpdate.frag");
         updateBlur.load("", shadersFolder+"/renderBlur.frag");
+        updateColor.load(shadersFolder+"/renderColor.vert", shadersFolder+"/renderColor.frag");
     }
     
     // Frag, Vert and Geo shaders for the rendering process of the spark image
@@ -41,6 +43,12 @@ void ofApp::setup(){
         for (int y = 0; y < textureRes; y++){
             int i = textureRes * y + x;
 
+            pos[i*3 + 0] = float(x) / float(textureRes);
+            pos[i*3 + 1] = float(y) / float(textureRes);
+
+            pos[i*3 + 0] = 0.5 + cos(float(i) / float(numParticles) * PI * 2) / 3;
+            pos[i*3 + 1] = 0.5 + sin(float(i) / float(numParticles) * PI * 2) / 3;
+
             /*
             pos[i*3 + 0] = 0.5 + cos(float(i) / float(numParticles) * PI * 2) / 3;
             pos[i*3 + 1] = 0.5 + sin(float(i) / float(numParticles) * PI * 2) / 3;
@@ -48,18 +56,15 @@ void ofApp::setup(){
             pos[i*3 + 0] = 0.40 + ofRandom(1) * 0.2;
             pos[i*3 + 1] = 0.40 + ofRandom(1) * 0.2;
 
-            pos[i*3 + 0] = float(x) / float(textureRes);
-            pos[i*3 + 1] = float(y) / float(textureRes);
-
-             pos[i*3 + 0] = 0.5;
+            pos[i*3 + 0] = 0.5;
             pos[i*3 + 1] = 0.5;
-*/
+
             
             float r = ofRandom(1) * 0.1;
             float t = ofRandom(1) * PI * 2;
             pos[i * 3 + 0] = 0.5 + cos(t) * r;
             pos[i * 3 + 1] = 0.5 + sin(t) * r;
-            
+             */
             pos[i*3 + 2] = 0.0;
         }
     }
@@ -181,11 +186,14 @@ void ofApp::update(){
         renderFBO.dst->begin();
         updateBlur.begin();
         updateBlur.setUniformTexture("image", renderFBO.src->getTexture(), 0);
-        updateBlur.setUniform1i("horizontal", i);
+        updateBlur.setUniform1i("horizontal", i == 0);
         updateBlur.setUniform2f("screen", (float)width, (float)height);
         renderFBO.src->draw(0,0);
         updateBlur.end();
         renderFBO.dst->end();
+        if (i == 0) {
+            renderFBO.swap();
+        }
     }
 
     renderFBO.dst->begin();

@@ -1,7 +1,7 @@
-#version 150
+#version 330
 
-uniform sampler2DRect prevPosData;  // previous position texture
-uniform sampler2DRect velData;      // velocity texture
+uniform sampler2DRect prevPosData;
+uniform sampler2DRect velData;
 
 uniform float timestep;
 
@@ -10,14 +10,16 @@ in vec2 vTexCoord;
 out vec4 vFragColor;
 
 void main(void){
-    // Get the position and velocity from the pixel color.
     vec2 pos = texture( prevPosData, vTexCoord ).xy;
     float dir = texture( velData, vTexCoord ).x;
+
+    pos.x += cos(dir) * timestep;
+    pos.y += sin(dir) * timestep;
     
-    // Update the position.
-    pos.x += cos(dir) * timestep * 0.1;
-    pos.y += sin(dir) * timestep * 0.1;
+    if (pos.x < 0 || pos.y < 0 || pos.x >= 1 || pos.y >= 1) {
+        pos.x = 0.5;
+        pos.y = 0.5;
+    }
     
-    // And finally store it on the position FBO.
-    vFragColor = vec4(pos.x,pos.y,1.0,1.0);  
+    vFragColor = vec4(pos.x,pos.y,1.0,1.0);
 }

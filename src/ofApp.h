@@ -82,11 +82,13 @@ public:
 	ofShader    updateVel;
     ofShader    updateBlur;
 	ofShader    updateRender;
+    ofShader    updateColor;
 
 	pingPongBuffer posPingPong;
 	pingPongBuffer velPingPong;
     pingPongBuffer colorPingPong;
 
+    pingPongBuffer colorRenderFBO;
 	pingPongBuffer renderFBO;
 
 	float   timeStep;

@@ -11,8 +11,8 @@ void main() {
     vec2 verPos = gl_MultiTexCoord0.xy;
 
     // read position data from texture
-    vec4 pixPos = texture2DRect( posTex, verPos );
-    
+    vec4 pixPos = texture2DRect(posTex, verPos);
+
     // Maps the position from the texture (from 0.0 to 1.0) to
     // the screen position (0 - screenWidth/screenHeight)
     //
@@ -20,5 +20,4 @@ void main() {
     pixPos.y *= screen.y;
     
     gl_Position = pixPos;
-    gl_FrontColor = vec4(1.0, 0.0, 1.0, 1.0);
 }
