@@ -2,15 +2,17 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    img.load("/Volumes/fast-external/photos-to-mold/red-moon.jpg");
+    img.load("/Volumes/fast-external/photos-to-mold/taxi-small.jpg");
 
-    numParticlesSqrt = 256;
+    numParticlesSqrt = 512;
     numParticles = numParticlesSqrt * numParticlesSqrt;
 
-    timeStep = 0.0001f;
+    timeStep = 0.0006f;
     
     width = img.getWidth(); //ofGetWindowWidth();
     height = img.getHeight(); //ofGetWindowHeight();
+    
+    ofSetWindowShape(1024, 1024 * (float(height) / float(width)));
     
     string shadersFolder;
     if(ofIsGLProgrammableRenderer()){
@@ -51,8 +53,9 @@ void ofApp::setup(){
         colors[i * 3 + 0] = oc.r / 256.0;
         colors[i * 3 + 1] = oc.g / 256.0;
         colors[i * 3 + 2] = oc.b / 256.0;
-        
-        if ((colors[i * 3] + colors[i * 3 + 1] + colors[i * 3 + 2]) > (ofRandom(1) * 3.0)) {
+        float sum = colors[i * 3] + colors[i * 3 + 1] + colors[i * 3 + 2];
+        int m = max(max(oc.r, oc.g), oc.b);
+        if (/*m > 168 && sum > 1.0 && */sum > (ofRandom(1) * 3.0)) {
             pos[i * 3] = x;
             pos[i * 3 + 1] = y;
             i++;
@@ -69,7 +72,7 @@ void ofApp::setup(){
 
     vector<float> vel(numParticles*3);
     for (int i = 0; i < numParticles; i++){
-        vel[i*3 + 0] = ofRandom(1) * 6.28;
+        vel[i*3 + 0] = ofRandom(1) * PI * 2.0 - PI;
         vel[i*3 + 1] = 0;
         vel[i*3 + 2] = 0;
     }
@@ -86,12 +89,15 @@ void ofApp::setup(){
     mesh.setMode(OF_PRIMITIVE_POINTS);
     for(int x = 0; x < numParticlesSqrt; x++){
         for(int y = 0; y < numParticlesSqrt; y++){
-            mesh.addVertex({x,y,0});
+            mesh.addVertex({x, y, 0});
             mesh.addTexCoord({x, y});
         }
     }
 
-    // do one round of updates to the renderFBO to make it consistent
+    // Seed the render buffer with the original image.
+    renderFBO.dst->getTexture().loadData(img.getPixels());
+    renderFBO.src->getTexture().loadData(img.getPixels());
+    /*
     for (int i = 0; i < 2; i++) {
         renderFBO.dst->begin();
         ofClear(0,0,0,0);
@@ -113,6 +119,7 @@ void ofApp::setup(){
         renderFBO.swap();
         ofPopStyle();
     }
+    */
 }
 
 //--------------------------------------------------------------
@@ -131,6 +138,7 @@ void ofApp::update(){
     // It calculates the next frame and see if it's there any collition
     // then updates the velocity with that information
     //
+    static int step = 0;
     velPingPong.dst->begin();
     ofClear(0);
     updateVel.begin();
@@ -140,6 +148,7 @@ void ofApp::update(){
     updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 3);
     updateVel.setUniform2f("screen", (float)width, (float)height);
     updateVel.setUniform1f("timestep", (float)timeStep);
+    updateVel.setUniform1i("dir_delta", step++ % 2);
 
     velPingPong.src->draw(0, 0);
     
@@ -209,10 +218,9 @@ void ofApp::draw(){
     
     ofSetColor(255,255,255);
     renderFBO.dst->draw(0,0, ofGetWindowWidth(), ofGetWindowHeight());
-    /*
+
     ofSetColor(255);
-    ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()), 15,15);
-    */
+    ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()), 15, 15);
 }
 
 //--------------------------------------------------------------

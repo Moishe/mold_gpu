@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Vertex shader. Emit the x/y coordinates from our position texture,
 // and the color from our color texture.
@@ -23,6 +23,7 @@ void main() {
     
     pixPos.x *= screen.x;
     pixPos.y *= screen.y;
+    pixPos.z = 0;
     
     vPosition = modelViewProjectionMatrix * pixPos;
     vs_out.color = vec4(texture(colorTex, texcoord).rgb, 1);
