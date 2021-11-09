@@ -29,15 +29,16 @@ float random (vec2 st) {
 }
 
 void main(void){
-    float look_amt = PI / 9.0;
-    float turn_amt = PI / 9.0;
+    float look_amt = 0.1;
+    float turn_amt = 0.1;
     vec2 pos = texture(posData, vTexCoord).xy;
     float dir = texture(velData, vTexCoord).x;
+    float age = texture(velData, vTexCoord).y;
     vec3 goal = normalize(texture(colorData, vTexCoord).rgb);
     
-    float d = length(1/screen) * 8;
-    vec2 lp = look_dir(pos, dir + look_amt, d);
-    vec2 rp = look_dir(pos, dir - look_amt, d);
+    float d = 0.001; //length(1/screen) * 50;
+    vec2 lp = look_dir(pos, dir - look_amt, d);
+    vec2 rp = look_dir(pos, dir + look_amt, d);
     vec2 cp = look_dir(pos, dir, d);
 
     vec3 left = normalize(texture(trailData, lp).xyz);
@@ -49,13 +50,19 @@ void main(void){
     float cd = dot(goal, center);
     
     float mx = 0.99 + (length(random(goal.xy + pos * dir)) * 0.02);
-    dir += 0.02 - (length(random(goal.xy + pos * turn_amt)) * 0.04);
 
     if (rd > cd && rd > ld) {
-        dir = mix(dir, dir - turn_amt, mx);
-    } else if (ld > cd && ld > rd) {
         dir = mix(dir, dir + turn_amt, mx);
+    } else if (ld > cd && ld > rd) {
+        dir = mix(dir, dir - turn_amt, mx);
+    } else {
+        dir += 0.2;// - (length(random(goal.xy + pos * turn_amt)) * 0.12);
+    }
+    
+    age += 1.0;
+    if (age > 1000.0) {
+        age = 0.0;
     }
 
-    vFragColor = vec4(dir,1.0,1.0,1.0);
+    vFragColor = vec4(dir, age, 1, 1);
 }

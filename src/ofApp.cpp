@@ -2,12 +2,12 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    img.load("/Volumes/fast-external/photos-to-mold/taxi-small.jpg");
+    img.load("/Volumes/fast-external/photos-to-mold/red-moon.jpg");
 
     numParticlesSqrt = 512;
     numParticles = numParticlesSqrt * numParticlesSqrt;
 
-    timeStep = 0.0006f;
+    timeStep = 0.0001f;
     
     width = img.getWidth(); //ofGetWindowWidth();
     height = img.getHeight(); //ofGetWindowHeight();
@@ -25,6 +25,7 @@ void ofApp::setup(){
     if(ofIsGLProgrammableRenderer()){
         updatePos.load(shadersFolder+"/passthru.vert", shadersFolder+"/posUpdate.frag");
         updateVel.load(shadersFolder+"/passthru.vert", shadersFolder+"/velUpdate.frag");
+        updateColor.load(shadersFolder+"/passthru.vert", shadersFolder+"/colorUpdate.frag");
         updateBlur.load(shadersFolder+"/passthru.vert", shadersFolder+"/renderBlur.frag");
     }else{
         updatePos.load("",shadersFolder+"/posUpdate.frag");
@@ -70,11 +71,11 @@ void ofApp::setup(){
     colorPingPong.src->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
     colorPingPong.dst->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
 
-    vector<float> vel(numParticles*3);
+    vector<float> vel(numParticles * 3);
     for (int i = 0; i < numParticles; i++){
-        vel[i*3 + 0] = ofRandom(1) * PI * 2.0 - PI;
-        vel[i*3 + 1] = 0;
-        vel[i*3 + 2] = 0;
+        vel[i * 3 + 0] = ofRandom(1) * PI * 2.0 - PI;
+        vel[i * 3 + 1] = ofRandom(1) * 1000.0;
+        vel[i * 3 + 2] = 0;
     }
     velPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
     velPingPong.src->getTexture().loadData(vel.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
@@ -97,29 +98,6 @@ void ofApp::setup(){
     // Seed the render buffer with the original image.
     renderFBO.dst->getTexture().loadData(img.getPixels());
     renderFBO.src->getTexture().loadData(img.getPixels());
-    /*
-    for (int i = 0; i < 2; i++) {
-        renderFBO.dst->begin();
-        ofClear(0,0,0,0);
-        updateRender.begin();
-        updateRender.setUniformTexture("posTex", posPingPong.dst->getTexture(), 0);
-        updateRender.setUniformTexture("colorTex", colorPingPong.dst->getTexture(), 1);
-        updateRender.setUniform2f("screen", (float)width, (float)height);
-        ofPushStyle();
-        ofEnableBlendMode( OF_BLENDMODE_ALPHA );
-        ofSetColor(255);
-
-        mesh.draw();
-        
-        ofDisableBlendMode();
-        glEnd();
-        
-        updateRender.end();
-        renderFBO.dst->end();
-        renderFBO.swap();
-        ofPopStyle();
-    }
-    */
 }
 
 //--------------------------------------------------------------
@@ -174,6 +152,18 @@ void ofApp::update(){
     updatePos.end();
     posPingPong.dst->end();
     posPingPong.swap();
+    
+    colorPingPong.dst->begin();
+    updateColor.begin();
+    updateColor.setUniformTexture("prevColorData", colorPingPong.src->getTexture(), 0);
+    updateColor.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
+    updateColor.setUniformTexture("velData", velPingPong.src->getTexture(), 2);
+    updateColor.setUniformTexture("origImageData", img.getTexture(), 3);
+    updateColor.setUniform2f("screen", (float)width, (float)height);
+    colorPingPong.src->draw(0, 0);
+    updateColor.end();
+    colorPingPong.dst->end();
+    colorPingPong.swap();
 
     // Blur it
     for (int i = 0; i < 2; i++) {

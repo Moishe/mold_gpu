@@ -19,18 +19,15 @@ float random (vec2 st) {
 
 void main(void){
     vec2 pos = texture(prevPosData, vTexCoord).xy;
-    float age = texture(prevPosData, vTexCoord).z;
     float dir = texture(velData, vTexCoord).x;
+    float age = texture(velData, vTexCoord).y;
 
     pos.x += cos(dir) * timestep;
     pos.y += sin(dir) * timestep;
 
-    if (pos.x < 0 || pos.y < 0 || pos.x >= 1 || pos.y >= 1) {
+    if (age >= 1000) {
         pos.x = random(pos);
         pos.y = random(pos + dir);
-        age = 0.0;
-    } else {
-        age += 1.0;
     }
 
     vFragColor = vec4(pos.x, pos.y, age, 1.0);
