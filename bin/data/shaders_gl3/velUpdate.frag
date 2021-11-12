@@ -7,9 +7,9 @@ uniform sampler2DRect colorData;
 uniform sampler2DRect trailData;
 uniform sampler2DRect randomData;
 
-uniform float timestep;
 uniform vec2 screen;
-uniform int dir_delta;
+uniform float timestep;
+uniform float maxage;
 
 in vec2 vTexCoord;
 
@@ -29,40 +29,40 @@ float random (vec2 st) {
 }
 
 void main(void){
-    float look_amt = 0.1;
-    float turn_amt = 0.1;
+    float look_amt = 0.6;
     vec2 pos = texture(posData, vTexCoord).xy;
     float dir = texture(velData, vTexCoord).x;
     float age = texture(velData, vTexCoord).y;
     vec3 goal = normalize(texture(colorData, vTexCoord).rgb);
     
-    float d = 0.001; //length(1/screen) * 50;
-    vec2 lp = look_dir(pos, dir - look_amt, d);
-    vec2 rp = look_dir(pos, dir + look_amt, d);
-    vec2 cp = look_dir(pos, dir, d);
-
-    vec3 left = normalize(texture(trailData, lp).xyz);
-    vec3 center = normalize(texture(trailData, rp).xyz);
-    vec3 right = normalize(texture(trailData, cp).xyz);
-    
-    float ld = dot(goal, left);
-    float rd = dot(goal, right);
-    float cd = dot(goal, center);
-    
-    float mx = 0.99 + (length(random(goal.xy + pos * dir)) * 0.02);
-
-    if (rd > cd && rd > ld) {
-        dir = mix(dir, dir + turn_amt, mx);
-    } else if (ld > cd && ld > rd) {
-        dir = mix(dir, dir - turn_amt, mx);
-    } else {
-        dir += 0.2;// - (length(random(goal.xy + pos * turn_amt)) * 0.12);
+    float d = length(1/screen) * 8;
+    float maxdp = 0;
+    float idxmax = 0;
+    float dirmax = dir + random(pos + dir + age) * 0.1 - 0.05;
+    for (int i = 0; i < 11; i++) {
+        float dirlook = mix(dir - look_amt, dir + look_amt, float(i) * 0.1);
+        vec2 dir_p = look_dir(pos, dirlook, d);
+        float dot_p = abs(dot(goal, normalize(texture(trailData, dir_p).xyz)));
+        if (dot_p > maxdp) {
+            maxdp = dot_p;
+            idxmax = i;
+            dirmax = dirlook;
+        }
     }
+    float mx = 0.9;
+    dir = mix(dir, dirmax, mx);
     
-    age += 1.0;
-    if (age > 1000.0) {
+    pos.x += cos(dir) * timestep;
+    pos.y += sin(dir) * timestep;
+    if (pos.x < 0 || pos.y < 0 || pos.x > 1 || pos.y > 1) {
         age = 0.0;
     }
 
-    vFragColor = vec4(dir, age, 1, 1);
+    age += 1.0;
+    if (age >= 1000.0 + random(dir + pos * age) * 100.0) {
+        age = 0.0;
+        dir += PI;
+    }
+
+    vFragColor = vec4(dir, age, 1.0, 1.0);
 }

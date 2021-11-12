@@ -80,6 +80,9 @@ public:
 	pingPongBuffer renderFBO;
     
     ofImage img;
+    
+    string random_id;
+    string filename;
 
 	float   timeStep;
 

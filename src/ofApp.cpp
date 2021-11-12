@@ -1,8 +1,13 @@
 #include "ofApp.h"
+#include <algorithm>
+
+float maxage = 100.0;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
+    //img.load("/Volumes/fast-external/photos-to-mold/moon-big.jpg");
     img.load("/Volumes/fast-external/photos-to-mold/red-moon.jpg");
+    filename = "/Volumes/fast-external/photos-to-mold/moon-big";
 
     numParticlesSqrt = 512;
     numParticles = numParticlesSqrt * numParticlesSqrt;
@@ -43,6 +48,45 @@ void ofApp::setup(){
     // 1. Making arrays of float pixels with position & color information
     vector<float> pos(numParticles*3);
     vector<float> colors(numParticles * 3);
+    vector<float> vel(numParticles * 3);
+    float xorig = 0.55;
+    float yorig = 0.15;
+    for (int i = 0; i < numParticles; i++) {
+        if (i == numParticles / 2) {
+            xorig = 0.5;
+            yorig = 0.9;
+        }
+        float t, r, x, y;
+        int xx, yy;
+        do {
+            t = ofRandom(1) * PI * 2;
+            r = ofRandom(1) * 1.2;
+            x = xorig + cos(t) * r;
+            y = yorig + sin(t) * r;
+            pos[i * 3] = x;
+            pos[i * 3 + 1] = y;
+            pos[i * 3 + 2] = 0;
+            
+            xx = min(int(x * float(width)), width - 1);
+            yy = min(int(y * float(height)), height - 1);
+        } while (xx < 0 || yy < 0);
+        int idx = xx + yy * width;
+        ofColor oc = img.getColor(xx, yy);
+        ofVec3f color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
+        colors[i * 3 + 0] = color.x;
+        colors[i * 3 + 1] = color.y;
+        colors[i * 3 + 2] = color.z;
+
+        vel[i * 3 + 0] = t; //ofRandom(1) * PI * 2; //t + PI;
+        vel[i * 3 + 1] = ofRandom(1) * maxage;
+        vel[i * 3 + 2] = 0;
+        /*
+         colors[i * 3 + 0] = 1;
+         colors[i * 3 + 1] = 1;
+         colors[i * 3 + 2] = 1;
+         */
+    }
+    /*
     int i = 0;
     do {
         float x = ofRandom(1);
@@ -56,13 +100,13 @@ void ofApp::setup(){
         colors[i * 3 + 2] = oc.b / 256.0;
         float sum = colors[i * 3] + colors[i * 3 + 1] + colors[i * 3 + 2];
         int m = max(max(oc.r, oc.g), oc.b);
-        if (/*m > 168 && sum > 1.0 && */sum > (ofRandom(1) * 3.0)) {
+        if (sum > (ofRandom(1) * 3.0)) {
             pos[i * 3] = x;
             pos[i * 3 + 1] = y;
             i++;
         }
     } while (i < numParticles);
-    
+    */
     posPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
     posPingPong.src->getTexture().loadData(pos.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
     posPingPong.dst->getTexture().loadData(pos.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
@@ -71,12 +115,6 @@ void ofApp::setup(){
     colorPingPong.src->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
     colorPingPong.dst->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
 
-    vector<float> vel(numParticles * 3);
-    for (int i = 0; i < numParticles; i++){
-        vel[i * 3 + 0] = ofRandom(1) * PI * 2.0 - PI;
-        vel[i * 3 + 1] = ofRandom(1) * 1000.0;
-        vel[i * 3 + 2] = 0;
-    }
     velPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
     velPingPong.src->getTexture().loadData(vel.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
     velPingPong.dst->getTexture().loadData(vel.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
@@ -96,26 +134,12 @@ void ofApp::setup(){
     }
 
     // Seed the render buffer with the original image.
-    renderFBO.dst->getTexture().loadData(img.getPixels());
-    renderFBO.src->getTexture().loadData(img.getPixels());
+    //renderFBO.dst->getTexture().loadData(img.getPixels());
+    //renderFBO.src->getTexture().loadData(img.getPixels());
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    // In each cycle it's going to update the velocity first and the the position
-    // Each one one with a different shader and FBO.
-    // Because on GPU you can't write over the texture that you are reading we are
-    // using to pair of ofFbo attached together on what we call pingPongBuffer 
-    // Learn more about Ping-Pong at:
-    //
-    // http://www.comp.nus.edu/~ashwinna/docs/PingPong_FBO.pdf
-    // http://www.seas.upenn.edu/~cis565/fbo.htm#setupgl4
-    
-    // Velocities PingPong
-    //
-    // It calculates the next frame and see if it's there any collition
-    // then updates the velocity with that information
-    //
     static int step = 0;
     velPingPong.dst->begin();
     ofClear(0);
@@ -126,7 +150,7 @@ void ofApp::update(){
     updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 3);
     updateVel.setUniform2f("screen", (float)width, (float)height);
     updateVel.setUniform1f("timestep", (float)timeStep);
-    updateVel.setUniform1i("dir_delta", step++ % 2);
+    updatePos.setUniform1f("maxage", maxage);
 
     velPingPong.src->draw(0, 0);
     
@@ -146,8 +170,9 @@ void ofApp::update(){
     updatePos.setUniformTexture("prevPosData", posPingPong.src->getTexture(), 0); // Previus position
     updatePos.setUniformTexture("velData", velPingPong.src->getTexture(), 1);  // Velocity
     updatePos.setUniform1f("timestep",(float) timeStep );
-    updatePos.setUniform1f("locx", (float)ofRandom(1));
-    updatePos.setUniform1f("locy", (float)ofRandom(1));
+    updatePos.setUniform1f("locx", 0.5); //(float)ofRandom(1));
+    updatePos.setUniform1f("locy", 0.5); //(float)ofRandom(1));
+    updatePos.setUniform1f("maxage", maxage);
     posPingPong.src->draw(0, 0);
     updatePos.end();
     posPingPong.dst->end();
@@ -181,7 +206,6 @@ void ofApp::update(){
     }
 
     renderFBO.dst->begin();
-    //ofClear(0,0,0,0);
     updateRender.begin();
     updateRender.setUniformTexture("posTex", posPingPong.dst->getTexture(), 0);
     updateRender.setUniformTexture("colorTex", colorPingPong.dst->getTexture(), 1);
@@ -200,6 +224,19 @@ void ofApp::update(){
     renderFBO.dst->end();
     renderFBO.swap();
     ofPopStyle();
+    
+    if (false) {
+        ofPixels pixels;
+        renderFBO.src->getTexture().readToPixels(pixels);
+        ofImage img(pixels);
+        std::stringstream ss;
+        ss << filename << "/" << "zzz" << "-";
+        ss << std::setw(10) << std::setfill('0') << std::to_string(step);
+        ss << ".jpg";
+        
+        string fullname = ss.str();
+        img.save(fullname);
+    }
 }
 
 //--------------------------------------------------------------

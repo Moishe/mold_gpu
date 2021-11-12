@@ -6,6 +6,7 @@ uniform sampler2DRect velData;
 uniform float timestep;
 uniform float locx;
 uniform float locy;
+uniform float maxage;
 
 in vec2 vTexCoord;
 
@@ -25,10 +26,15 @@ void main(void){
     pos.x += cos(dir) * timestep;
     pos.y += sin(dir) * timestep;
 
-    if (age >= 1000) {
+    if (age == 0.0) {
         pos.x = random(pos);
         pos.y = random(pos + dir);
     }
-
-    vFragColor = vec4(pos.x, pos.y, age, 1.0);
+    /*
+    if (pos.x > 1 || pos.y > 1 || pos.x < 0 || pos.y < 0) {
+        pos.x = random(pos + age * dir);
+        pos.y = random(pos * age + dir);
+    }
+    */
+    vFragColor = vec4(pos.x, pos.y, 1.0, 1.0);
 }
