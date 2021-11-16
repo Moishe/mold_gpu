@@ -26,15 +26,15 @@ void main(void){
     pos.x += cos(dir) * timestep;
     pos.y += sin(dir) * timestep;
 
-    if (age == 0.0) {
+    if (age <= 0.0) {
         pos.x = random(pos);
         pos.y = random(pos + dir);
     }
-    /*
+/*
     if (pos.x > 1 || pos.y > 1 || pos.x < 0 || pos.y < 0) {
         pos.x = random(pos + age * dir);
         pos.y = random(pos * age + dir);
     }
-    */
+*/
     vFragColor = vec4(pos.x, pos.y, 1.0, 1.0);
 }
