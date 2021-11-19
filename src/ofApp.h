@@ -71,6 +71,7 @@ public:
     ofShader    updateBlur;
 	ofShader    updateRender;
     ofShader    updateColor;
+    ofShader    updateSpawn;
 
 	pingPongBuffer posPingPong;
 	pingPongBuffer velPingPong;
