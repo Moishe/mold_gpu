@@ -26,7 +26,7 @@ void main(void){
     pos.x += cos(dir) * timestep;
     pos.y += sin(dir) * timestep;
 
-    if (age <= 0 || pos.x > 1.0 || pos.y > 1.0 || pos.x < 0 || pos.y < 0) {
+    if (age <= 0 || pos.x >= 1.0 || pos.y >= 1.0 || pos.x <= 0 || pos.y <= 0) {
         if (vTexCoord.x == 0 && vTexCoord.y == 0) {
             pos.x = 0.5;
             pos.y = 0.5;

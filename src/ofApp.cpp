@@ -5,15 +5,16 @@ float maxage = 100.0;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    bool radial_fill = true;
-    float fill_radius = 0.8;
-    bool seed_orig_image = true;
-    int min_color_vector_length = 64;
+    bool radial_fill = false;
+    bool one_seed = false;
+    float fill_radius = 0.02;
+    bool seed_orig_image = false;
+    int min_color_vector_length = 16;
     bool actor_for_every_pixel = false;
     int pixel_step = 1;
-    float direction_offset = 0;
+    float direction_offset = PI;
 
-    img.load("/Volumes/fast-external/new-photos-to-mold/selfie-2.jpg");
+    img.load("/Users/moishe/Desktop/lit-trees.jpg");
     filename = "/Volumes/fast-external/new-photos-to-mold/selfie-2";
 
     width = int(img.getWidth() / 2) * 2;
@@ -22,11 +23,11 @@ void ofApp::setup(){
     if (actor_for_every_pixel) {
         numParticlesSqrt = int(sqrt((width * height) / pixel_step) + 1);
     } else {
-        numParticlesSqrt = 4096 ;
+        numParticlesSqrt = 1024;
     }
     numParticles = numParticlesSqrt * numParticlesSqrt;
 
-    timeStep = 1.0/(max(width, height)) * 0.1;
+    timeStep = 1.0/(max(width, height)) * 2.0;
     
     ofSetWindowShape(768, 768 * (float(height) / float(width)));
     
@@ -60,7 +61,45 @@ void ofApp::setup(){
     vector<float> pos(numParticles*3);
     vector<float> colors(numParticles * 3);
     vector<float> vel(numParticles * 3);
-    if (actor_for_every_pixel) {
+    float xorig = 0.5;
+    float yorig = 0.5;
+    float dir = 0;
+    if (one_seed) {
+        for (int i = 0; i < numParticles; i++) {
+            ofColor oc;
+            ofVec3f color;
+            if (i == 0) {
+                do {
+                    int xx, yy;
+                    do {
+                        if (i != 0) {
+                            xorig = ofRandom(1);
+                            yorig = ofRandom(1);
+                        }
+
+                        xx = min(int(xorig * float(width)), width - 1);
+                        yy = min(int(yorig * float(height)), height - 1);
+                    } while (xx < 0 || yy < 0);
+                    int idx = xx + yy * width;
+                    oc = img.getColor(xx, yy);
+                    color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
+                } while ((oc.r + oc.g + oc.b) < min_color_vector_length);
+                dir = ofRandom(1.0) * PI * 2;
+            }
+
+            pos[i * 3] = xorig;
+            pos[i * 3 + 1] = yorig;
+            pos[i * 3 + 2] = 0;
+            
+            colors[i * 3 + 0] = color.x;
+            colors[i * 3 + 1] = color.y;
+            colors[i * 3 + 2] = color.z;
+
+            vel[i * 3 + 0] = ofRandom(1) * PI * 2;
+            vel[i * 3 + 1] = ofRandom(10000.0);
+            vel[i * 3 + 2] = ofRandom(1.0);
+        }
+    } else if (actor_for_every_pixel) {
         for (int i = 0; i < (width * height) / pixel_step; i++) {
             int x = (i * pixel_step) % width;
             int y = (i * pixel_step) / width;
@@ -79,8 +118,6 @@ void ofApp::setup(){
             vel[i * 3 + 2] = 0;
         }
     } else {
-        float xorig = 0.662;
-        float yorig = 0.365;
         for (int i = 0; i < numParticles; i++) {
             if (!radial_fill) {
                 if (true) {
@@ -120,16 +157,20 @@ void ofApp::setup(){
                 vel[i * 3 + 2] = 100;
             } else {
                 if (i == numParticles / 2) {
-                    //xorig = 0.5;
-                    //yorig = 0.9;
+                    //xorig = 0.272;
+                    //yorig = 0.593;
                 }
                 float t, r, x, y;
                 int xx, yy;
                 ofColor oc;
                 do {
                     do {
+                        if (i == 0) {
+                            r = 0;
+                        } else {
+                            r = ofRandom(1) * fill_radius;
+                        }
                         t = ofRandom(1) * PI * 2;
-                        r = ofRandom(1) * fill_radius;
                         x = xorig + cos(t) * r;
                         y = yorig + sin(t) * r * (float(width) / float(height));
                         pos[i * 3] = x;
@@ -140,14 +181,16 @@ void ofApp::setup(){
                         yy = min(int(y * float(height)), height - 1);
                     } while (xx < 0 || yy < 0);
                     int idx = xx + yy * width;
-                    ofColor oc = img.getColor(xx, yy);
-                    ofVec3f color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
+                    ofColor oc;
+                    ofVec3f color;
+                    oc = img.getColor(xx, yy);
+                    color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
                     colors[i * 3 + 0] = color.x;
                     colors[i * 3 + 1] = color.y;
                     colors[i * 3 + 2] = color.z;
                 } while ((oc.r + oc.g + oc.b) < min_color_vector_length);
 
-                vel[i * 3 + 0] = t + direction_offset; //ofRandom(1) * PI * 2; //t + PI;
+                vel[i * 3 + 0] = t; //t;// + direction_offset; //ofRandom(1) * PI * 2; //t + PI;
                 vel[i * 3 + 1] = ofRandom(1) * maxage;
                 vel[i * 3 + 2] = 0;
             }
@@ -210,9 +253,9 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update() {
-    bool save_roll = true;
+    bool save_roll = false;
     int frame_increment = 1;
-    int max_frames = 60 * 60;
+    int max_frames = 60 * 60 * 100000;
     static int step = 0;
     // Positions PingPong
     //
@@ -260,7 +303,6 @@ void ofApp::update() {
     velPingPong.swap();
         
     // Blur it
-
     for (int i = 0; i < 2; i++) {
         renderFBO.dst->begin();
         updateBlur.begin();
@@ -351,10 +393,11 @@ void ofApp::mousePressed(int x, int y, int button){
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
+    
     ofPixels pix;
     renderFBO.dst->getTexture().readToPixels(pix);
     ofImage img(pix);
-    std::string filename = "/Users/moishelettvin/gen-images/saved-image-foobar";
+    std::string filename = "/Users/moishe/gen-images/saved-image-foobar";
     //filename.append(gen_random(5));
     filename.append(".jpg");
     img.save(filename);
