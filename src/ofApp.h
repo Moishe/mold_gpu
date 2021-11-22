@@ -66,18 +66,21 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 
+    ofShader    updateLife;
 	ofShader    updatePos;
-	ofShader    updateVel;
-    ofShader    updateBlur;
-	ofShader    updateRender;
     ofShader    updateColor;
-    ofShader    updateSpawn;
+	ofShader    updateVel;
+    ofShader    updateRand;
 
+    pingPongBuffer lifePingPong;
 	pingPongBuffer posPingPong;
-	pingPongBuffer velPingPong;
     pingPongBuffer colorPingPong;
+	pingPongBuffer velPingPong;
+    pingPongBuffer randPingPong;
 
-    pingPongBuffer colorRenderFBO;
+    ofShader    updateBlur;
+    ofShader    updateRender;
+
 	pingPongBuffer renderFBO;
     
     ofImage img;
@@ -92,4 +95,7 @@ public:
 	int     numParticles;
 
 	ofVboMesh mesh;
+    
+private:
+    void allocateAndLoad(pingPongBuffer &buf, vector<float> &data);
 };

@@ -1,235 +1,111 @@
 #include "ofApp.h"
 #include <algorithm>
 
-float maxage = 100.0;
+class Config {
+public:
+    static constexpr bool seed_orig_image = false;
+    static constexpr int min_color_vector_length = 16;
+    static constexpr int pixel_step = 1;
+    static constexpr float direction_offset = PI;
+    
+    static constexpr int num_particles_sqrt = 1024;
+    static constexpr float time_step_multiplier = 2.0;
+
+    static constexpr char *imgName = "/Users/moishe/Desktop/lit-trees.jpg";
+    
+    static constexpr float min_age = 100;
+    static constexpr float max_age = 100;
+};
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-    bool radial_fill = false;
-    bool one_seed = false;
-    float fill_radius = 0.02;
-    bool seed_orig_image = false;
-    int min_color_vector_length = 16;
-    bool actor_for_every_pixel = false;
-    int pixel_step = 1;
-    float direction_offset = PI;
-
-    img.load("/Users/moishe/Desktop/lit-trees.jpg");
-    filename = "/Volumes/fast-external/new-photos-to-mold/selfie-2";
+    img.load(Config::imgName);
 
     width = int(img.getWidth() / 2) * 2;
     height = int(img.getHeight() / 2) * 2;
     
-    if (actor_for_every_pixel) {
-        numParticlesSqrt = int(sqrt((width * height) / pixel_step) + 1);
-    } else {
-        numParticlesSqrt = 1024;
-    }
+    numParticlesSqrt = Config::num_particles_sqrt;
     numParticles = numParticlesSqrt * numParticlesSqrt;
 
-    timeStep = 1.0/(max(width, height)) * 2.0;
+    timeStep = 1.0/(max(width, height)) * Config::time_step_multiplier;
     
     ofSetWindowShape(768, 768 * (float(height) / float(width)));
     
     string shadersFolder;
-    if(ofIsGLProgrammableRenderer()){
-    	shadersFolder="shaders_gl3";
-    }else{
-    	shadersFolder="shaders";
-    }
-
-    // Loading the Shaders
-    if(ofIsGLProgrammableRenderer()){
-        updatePos.load(shadersFolder+"/passthru.vert", shadersFolder+"/posUpdate.frag");
-        updateVel.load(shadersFolder+"/passthru.vert", shadersFolder+"/velUpdate.frag");
-        updateColor.load(shadersFolder+"/passthru.vert", shadersFolder+"/colorUpdate.frag");
-        updateBlur.load(shadersFolder+"/passthru.vert", shadersFolder+"/renderBlur.frag");
-    }else{
-        updatePos.load("",shadersFolder+"/posUpdate.frag");
-        updateVel.load("",shadersFolder+"/velUpdate.frag");
-        updateBlur.load("", shadersFolder+"/renderBlur.frag");
-        updateColor.load(shadersFolder+"/renderColor.vert", shadersFolder+"/renderColor.frag");
-    }
+    shadersFolder="shaders_gl3";
     
-    // Frag, Vert and Geo shaders for the rendering process of the spark image
+    // shaders that use combinations of textures to update actor state
+    updatePos.load(shadersFolder + "/passthru.vert", shadersFolder + "/posUpdate.frag");
+    updateVel.load(shadersFolder + "/passthru.vert", shadersFolder + "/velUpdate.frag");
+    updateColor.load(shadersFolder + "/passthru.vert", shadersFolder + "/colorUpdate.frag");
+    updateLife.load(shadersFolder + "/passthru.vert", shadersFolder + "/lifeUpdate.frag");
+    
+    // shader that's applied to the render FBO to blur and fade
+    updateBlur.load(shadersFolder + "/passthru.vert", shadersFolder + "/renderBlur.frag");
+    
     updateRender.setGeometryInputType(GL_POINTS);
 	updateRender.setGeometryOutputType(GL_POINTS);
 	updateRender.setGeometryOutputCount(1);
     updateRender.load(shadersFolder+"/render.vert", shadersFolder+"/render.frag", shadersFolder+"/render.geom");
+
+    // We have four textures that we pass to our shaders, that are all indexed to the same actor by x/y coordinates
+    //   Position:   actor positions
+    //   Colors:     the color each actor is seeking
+    //   Velocities: the direction and speed each actor is traveling. This corresponds to the direction the actor is looking.
+    //   Life:       each actor's lifecycle: how long they will live, their current age, and whether or not they're currently active.
     
-    // 1. Making arrays of float pixels with position & color information
-    vector<float> pos(numParticles*3);
+    // We also pass a "random" texture, to facilitate random movement and behavior. This texture is updated each generation.
+    
+    // The pipeline for updating (in the update method) is as follows:
+    //   Life:     if active, age (and maybe become inactive); if inactive, maybe become active
+    //   Position: update position based on velocity; reset position if newborn (active and age == 0)
+    //   Colors:   if newborn (active and age == 0), reset goal
+    //   Velocity: update velocity based on goal
+    
+    // Also:
+    //   Random:   updates random number texture with an LCG
+    
+    // Then, we render our actors onto our render FBO, setting position and color based on the respective textures
+    
+    vector<float> pos(numParticles * 3);
     vector<float> colors(numParticles * 3);
     vector<float> vel(numParticles * 3);
-    float xorig = 0.5;
-    float yorig = 0.5;
-    float dir = 0;
-    if (one_seed) {
-        for (int i = 0; i < numParticles; i++) {
-            ofColor oc;
-            ofVec3f color;
-            if (i == 0) {
-                do {
-                    int xx, yy;
-                    do {
-                        if (i != 0) {
-                            xorig = ofRandom(1);
-                            yorig = ofRandom(1);
-                        }
-
-                        xx = min(int(xorig * float(width)), width - 1);
-                        yy = min(int(yorig * float(height)), height - 1);
-                    } while (xx < 0 || yy < 0);
-                    int idx = xx + yy * width;
-                    oc = img.getColor(xx, yy);
-                    color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
-                } while ((oc.r + oc.g + oc.b) < min_color_vector_length);
-                dir = ofRandom(1.0) * PI * 2;
-            }
-
-            pos[i * 3] = xorig;
-            pos[i * 3 + 1] = yorig;
-            pos[i * 3 + 2] = 0;
-            
-            colors[i * 3 + 0] = color.x;
-            colors[i * 3 + 1] = color.y;
-            colors[i * 3 + 2] = color.z;
-
-            vel[i * 3 + 0] = ofRandom(1) * PI * 2;
-            vel[i * 3 + 1] = ofRandom(10000.0);
-            vel[i * 3 + 2] = ofRandom(1.0);
-        }
-    } else if (actor_for_every_pixel) {
-        for (int i = 0; i < (width * height) / pixel_step; i++) {
-            int x = (i * pixel_step) % width;
-            int y = (i * pixel_step) / width;
-            pos[i * 3] = x;
-            pos[i * 3 + 1] = y;
-            pos[i * 3 + 2] = 0;
-
-            ofColor oc = img.getColor(x, y);
-            ofVec3f color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
-            colors[i * 3 + 0] = color.x;
-            colors[i * 3 + 1] = color.y;
-            colors[i * 3 + 2] = color.z;
-
-            vel[i * 3 + 0] = ofRandom(1) * PI * 2;
-            vel[i * 3 + 1] = ofRandom(1) * maxage;
-            vel[i * 3 + 2] = 0;
-        }
-    } else {
-        for (int i = 0; i < numParticles; i++) {
-            if (!radial_fill) {
-                if (true) {
-                    ofColor oc;
-                    do {
-                        int xx, yy;
-                        do {
-                            float x = ofRandom(1);
-                            float y = ofRandom(1);
-
-                            pos[i * 3] = x;
-                            pos[i * 3 + 1] = y;
-                            pos[i * 3 + 2] = 0;
-                            
-                            xx = min(int(x * float(width)), width - 1);
-                            yy = min(int(y * float(height)), height - 1);
-                        } while (xx < 0 || yy < 0);
-                        int idx = xx + yy * width;
-                        oc = img.getColor(xx, yy);
-                        ofVec3f color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
-                        colors[i * 3 + 0] = color.x;
-                        colors[i * 3 + 1] = color.y;
-                        colors[i * 3 + 2] = color.z;
-                    } while ((oc.r + oc.g + oc.b) < min_color_vector_length);
-                    vel[i * 3 + 1] = ofRandom(maxage);
-                } else {
-                    pos[i * 3] = -1;
-                    pos[i * 3 + 1] = -1;
-                    pos[i * 3 + 2] = 0;
-                    colors[i * 3] = 1.0;
-                    colors[i * 3 + 1] = 1.0;
-                    colors[i * 3 + 2] = 1.0;
-                    vel[i * 3 + 1] = 0;
-                }
-
-                vel[i * 3 + 0] = ofRandom(1) * PI * 2;
-                vel[i * 3 + 2] = 100;
-            } else {
-                if (i == numParticles / 2) {
-                    //xorig = 0.272;
-                    //yorig = 0.593;
-                }
-                float t, r, x, y;
-                int xx, yy;
-                ofColor oc;
-                do {
-                    do {
-                        if (i == 0) {
-                            r = 0;
-                        } else {
-                            r = ofRandom(1) * fill_radius;
-                        }
-                        t = ofRandom(1) * PI * 2;
-                        x = xorig + cos(t) * r;
-                        y = yorig + sin(t) * r * (float(width) / float(height));
-                        pos[i * 3] = x;
-                        pos[i * 3 + 1] = y;
-                        pos[i * 3 + 2] = 0;
-                        
-                        xx = min(int(x * float(width)), width - 1);
-                        yy = min(int(y * float(height)), height - 1);
-                    } while (xx < 0 || yy < 0);
-                    int idx = xx + yy * width;
-                    ofColor oc;
-                    ofVec3f color;
-                    oc = img.getColor(xx, yy);
-                    color = ofVec3f(oc.r / 256.0, oc.g / 256.0, oc.b / 256.0);
-                    colors[i * 3 + 0] = color.x;
-                    colors[i * 3 + 1] = color.y;
-                    colors[i * 3 + 2] = color.z;
-                } while ((oc.r + oc.g + oc.b) < min_color_vector_length);
-
-                vel[i * 3 + 0] = t; //t;// + direction_offset; //ofRandom(1) * PI * 2; //t + PI;
-                vel[i * 3 + 1] = ofRandom(1) * maxage;
-                vel[i * 3 + 2] = 0;
-            }
-        }
-    }
-
-    /*
-    int i = 0;
-    do {
-        float x = ofRandom(1);
-        float y = ofRandom(1);
-        int xx = int(x * float(width));
-        int yy = int(y * float(height));
-        int idx = xx + yy * width;
-        ofColor oc = img.getColor(xx, yy);
-        colors[i * 3 + 0] = oc.r / 256.0;
-        colors[i * 3 + 1] = oc.g / 256.0;
-        colors[i * 3 + 2] = oc.b / 256.0;
-        float sum = colors[i * 3] + colors[i * 3 + 1] + colors[i * 3 + 2];
-        int m = max(max(oc.r, oc.g), oc.b);
-        if (sum > (ofRandom(1) * 3.0)) {
-            pos[i * 3] = x;
-            pos[i * 3 + 1] = y;
-            i++;
-        }
-    } while (i < numParticles);
-    */
-    posPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
-    posPingPong.src->getTexture().loadData(pos.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
-    posPingPong.dst->getTexture().loadData(pos.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
-
-    colorPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
-    colorPingPong.src->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
-    colorPingPong.dst->getTexture().loadData(colors.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
-
-    velPingPong.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
-    velPingPong.src->getTexture().loadData(vel.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
-    velPingPong.dst->getTexture().loadData(vel.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+    vector<float> life(numParticles * 3);
+    vector<float> randtex(numParticles * 3);
     
+    for (int i = 0; i < numParticles; i++) {
+        float x = i % width;
+        float y = min(i / width, height);
+        
+        pos[i * 3 + 0] = x / float(width);              // pos.x
+        pos[i * 3 + 1] = y / float(height);             // pos.y
+        pos[i * 3 + 2] = 0;                             // pos.z (unused)
+        
+        ofColor color = img.getColor(x, y) / 256.0;
+        colors[i * 3 + 0] = color.r;                    // self-evident
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+        
+        vel[i * 3 + 0] = ofRandom(PI * 2);              // vel.x -> direction
+        vel[i * 3 + 1] = timeStep;                      // vel.y -> speed
+        vel[i * 3 + 2] = 0;                             // vel.z (unused)
+        
+        float lifespan = ofRandom(Config::max_age) + Config::min_age;
+        life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
+        life[i * 3 + 1] = 0;                            // life.y -> age
+        life[i * 3 + 2] = 1;                            // life.z -> active (0 == false, 1 == true)
+        
+        randtex[i * 3 + 0] = ofRandom(1.0);             // pseudorandom numbers to seed the LCG
+        randtex[i * 3 + 1] = ofRandom(1.0);             // note that if we want reproducible results,
+        randtex[i * 3 + 2] = ofRandom(1.0);             // we could seed these with predictable numbers
+    }
+    
+    allocateAndLoad(posPingPong, pos);
+    allocateAndLoad(colorPingPong, colors);
+    allocateAndLoad(velPingPong, vel);
+    allocateAndLoad(lifePingPong, life);
+    allocateAndLoad(randPingPong, randtex);
+
     // Allocate the final
     renderFBO.allocate(width, height, GL_RGB32F);
     renderFBO.dst->begin();
@@ -245,18 +121,20 @@ void ofApp::setup(){
     }
 
     // Seed the render buffer with the original image.
-    if (seed_orig_image) {
+    if (Config::seed_orig_image) {
         renderFBO.dst->getTexture().loadData(img.getPixels());
         renderFBO.src->getTexture().loadData(img.getPixels());
     }
 }
 
+void ofApp::allocateAndLoad(pingPongBuffer &buf, vector<float> &data) {
+    buf.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
+    buf.src->getTexture().loadData(data.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+    buf.dst->getTexture().loadData(data.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+}
+
 //--------------------------------------------------------------
 void ofApp::update() {
-    bool save_roll = false;
-    int frame_increment = 1;
-    int max_frames = 60 * 60 * 100000;
-    static int step = 0;
     // Positions PingPong
     //
     // With the velocity calculated updates the position
@@ -269,7 +147,7 @@ void ofApp::update() {
     updatePos.setUniform1f("timestep",(float) timeStep );
     updatePos.setUniform1f("locx", 0.5); //(float)ofRandom(1));
     updatePos.setUniform1f("locy", 0.5); //(float)ofRandom(1));
-    updatePos.setUniform1f("maxage", maxage);
+    updatePos.setUniform1f("maxage", Config::max_age);
     posPingPong.src->draw(0, 0);
     updatePos.end();
     posPingPong.dst->end();
@@ -296,7 +174,7 @@ void ofApp::update() {
     updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 3);
     updateVel.setUniform2f("screen", (float)width, (float)height);
     updateVel.setUniform1f("timestep", (float)timeStep);
-    updatePos.setUniform1f("maxage", maxage);
+    updatePos.setUniform1f("maxage", Config::max_age);
     velPingPong.src->draw(0, 0);
     updateVel.end();
     velPingPong.dst->end();
@@ -338,6 +216,7 @@ void ofApp::update() {
     renderFBO.swap();
     ofPopStyle();
     
+    /*
     if (save_roll && step % frame_increment == 0 && step < max_frames) {
         ofPixels pixels;
         renderFBO.src->getTexture().readToPixels(pixels);
@@ -353,6 +232,7 @@ void ofApp::update() {
         ofExit();
     }
     step++;
+     */
 }
 
 //--------------------------------------------------------------
