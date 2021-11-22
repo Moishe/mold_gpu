@@ -4,14 +4,15 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = false;
+    static const int seed_particles = 1024;
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 1024;
-    static constexpr float time_step_multiplier = 2.0;
+    static constexpr int num_particles_sqrt = 2048;
+    static constexpr float time_step_multiplier = 0.3;
 
-    static constexpr char *imgName = "/Users/moishe/Desktop/lit-trees.jpg";
+    static constexpr char *imgName = "/Users/moishe/Desktop/flower-2.jpg";
     
     static constexpr float min_age = 100;
     static constexpr float max_age = 100;
@@ -36,10 +37,11 @@ void ofApp::setup(){
     
     // shaders that use combinations of textures to update actor state
     updatePos.load(shadersFolder + "/passthru.vert", shadersFolder + "/posUpdate.frag");
-    updateVel.load(shadersFolder + "/passthru.vert", shadersFolder + "/velUpdate.frag");
     updateColor.load(shadersFolder + "/passthru.vert", shadersFolder + "/colorUpdate.frag");
+    updateVel.load(shadersFolder + "/passthru.vert", shadersFolder + "/velUpdate.frag");
     updateLife.load(shadersFolder + "/passthru.vert", shadersFolder + "/lifeUpdate.frag");
-    
+    updateRand.load(shadersFolder + "/passthru.vert", shadersFolder + "/randUpdate.frag");
+
     // shader that's applied to the render FBO to blur and fade
     updateBlur.load(shadersFolder + "/passthru.vert", shadersFolder + "/renderBlur.frag");
     
@@ -72,13 +74,13 @@ void ofApp::setup(){
     vector<float> vel(numParticles * 3);
     vector<float> life(numParticles * 3);
     vector<float> randtex(numParticles * 3);
-    
-    for (int i = 0; i < numParticles; i++) {
-        float x = i % width;
-        float y = min(i / width, height);
         
-        pos[i * 3 + 0] = x / float(width);              // pos.x
-        pos[i * 3 + 1] = y / float(height);             // pos.y
+    for (int i = 0; i < numParticles; i++) {
+        float x = ofRandom(width);
+        float y = ofRandom(height);
+        
+        pos[i * 3 + 0] = 0.1 + (x / float(width)) * 0.8;// pos.x
+        pos[i * 3 + 1] = 0.1 + (y / float(height)) * 0.8;// pos.y
         pos[i * 3 + 2] = 0;                             // pos.z (unused)
         
         ofColor color = img.getColor(x, y) / 256.0;
@@ -89,11 +91,18 @@ void ofApp::setup(){
         vel[i * 3 + 0] = ofRandom(PI * 2);              // vel.x -> direction
         vel[i * 3 + 1] = timeStep;                      // vel.y -> speed
         vel[i * 3 + 2] = 0;                             // vel.z (unused)
-        
-        float lifespan = ofRandom(Config::max_age) + Config::min_age;
-        life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
-        life[i * 3 + 1] = 0;                            // life.y -> age
-        life[i * 3 + 2] = 1;                            // life.z -> active (0 == false, 1 == true)
+
+        if (i < Config::seed_particles) {
+            float lifespan = ofRandom(Config::max_age) + Config::min_age;
+            life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
+            life[i * 3 + 1] = 1.0;                          // life.y -> age
+            life[i * 3 + 2] = 1.0;                          // life.z -> active (0 == false, 1 == true)
+        } else {
+            // inactive actor
+            life[i * 3 + 0] = 0;
+            life[i * 3 + 1] = 0.0;
+            life[i * 3 + 1] = 0.0;
+        }
         
         randtex[i * 3 + 0] = ofRandom(1.0);             // pseudorandom numbers to seed the LCG
         randtex[i * 3 + 1] = ofRandom(1.0);             // note that if we want reproducible results,
@@ -135,29 +144,42 @@ void ofApp::allocateAndLoad(pingPongBuffer &buf, vector<float> &data) {
 
 //--------------------------------------------------------------
 void ofApp::update() {
-    // Positions PingPong
-    //
-    // With the velocity calculated updates the position
-    //
+    lifePingPong.dst->begin();
+    ofClear(0);
+    updateLife.begin();
+    updateLife.setUniformTexture("prevLifeData", lifePingPong.src->getTexture(), 0);
+    updateLife.setUniformTexture("prevPosData", posPingPong.src->getTexture(), 1);
+    updateLife.setUniformTexture("randomData", randPingPong.src->getTexture(), 2);
+    lifePingPong.src->draw(0, 0);
+    updateLife.end();
+    lifePingPong.dst->end();
+    lifePingPong.swap();
+    
     posPingPong.dst->begin();
     ofClear(0);
     updatePos.begin();
-    updatePos.setUniformTexture("prevPosData", posPingPong.src->getTexture(), 0); // Previus position
-    updatePos.setUniformTexture("velData", velPingPong.src->getTexture(), 1);  // Velocity
-    updatePos.setUniform1f("timestep",(float) timeStep );
-    updatePos.setUniform1f("locx", 0.5); //(float)ofRandom(1));
-    updatePos.setUniform1f("locy", 0.5); //(float)ofRandom(1));
-    updatePos.setUniform1f("maxage", Config::max_age);
+    updatePos.setUniformTexture("prevPosData", posPingPong.src->getTexture(), 0);
+    updatePos.setUniformTexture("velData", velPingPong.src->getTexture(), 1);
+    updatePos.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 2);
+    updatePos.setUniformTexture("randomData", randPingPong.src->getTexture(), 3);
+    updatePos.setUniform1f("timestep", timeStep);
+    updatePos.setUniform1f("numParticlesSqrt", numParticlesSqrt);
     posPingPong.src->draw(0, 0);
     updatePos.end();
     posPingPong.dst->end();
     posPingPong.swap();
     
+    ofFloatPixels pixels;
+    lifePingPong.src->getTexture().readToPixels(pixels);
+    
+    ofFloatPixels positionPixels;
+    posPingPong.src->getTexture().readToPixels(positionPixels);
+
     colorPingPong.dst->begin();
     updateColor.begin();
     updateColor.setUniformTexture("prevColorData", colorPingPong.src->getTexture(), 0);
     updateColor.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
-    updateColor.setUniformTexture("velData", velPingPong.src->getTexture(), 2);
+    updateColor.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 2);
     updateColor.setUniformTexture("origImageData", img.getTexture(), 3);
     updateColor.setUniform2f("screen", (float)width, (float)height);
     colorPingPong.src->draw(0, 0);
@@ -168,18 +190,33 @@ void ofApp::update() {
     velPingPong.dst->begin();
     ofClear(0);
     updateVel.begin();
-    updateVel.setUniformTexture("backbuffer", velPingPong.src->getTexture(), 0);
+    updateVel.setUniformTexture("velData", velPingPong.src->getTexture(), 0);
     updateVel.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
     updateVel.setUniformTexture("colorData", colorPingPong.src->getTexture(), 2);
-    updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 3);
+    updateVel.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 3);
+    updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 4);
+    updateVel.setUniformTexture("randomData", randPingPong.src->getTexture(), 5);
     updateVel.setUniform2f("screen", (float)width, (float)height);
     updateVel.setUniform1f("timestep", (float)timeStep);
-    updatePos.setUniform1f("maxage", Config::max_age);
     velPingPong.src->draw(0, 0);
     updateVel.end();
     velPingPong.dst->end();
     velPingPong.swap();
         
+    ofFloatPixels randPixels;
+    randPingPong.src->getTexture().readToPixels(randPixels);
+
+    randPingPong.dst->begin();
+    ofClear(0);
+    updateRand.begin();
+    updateRand.setUniformTexture("prevRandData", randPingPong.src->getTexture(), 0);
+    randPingPong.src->draw(0, 0);
+    updateRand.end();
+    randPingPong.dst->end();
+    randPingPong.swap();
+
+    randPingPong.src->getTexture().readToPixels(randPixels);
+
     // Blur it
     for (int i = 0; i < 2; i++) {
         renderFBO.dst->begin();

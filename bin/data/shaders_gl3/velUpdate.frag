@@ -4,12 +4,12 @@
 uniform sampler2DRect velData;
 uniform sampler2DRect posData;
 uniform sampler2DRect colorData;
+uniform sampler2DRect lifeData;
 uniform sampler2DRect trailData;
 uniform sampler2DRect randomData;
 
 uniform vec2 screen;
 uniform float timestep;
-uniform float maxage;
 
 in vec2 vTexCoord;
 
@@ -24,24 +24,21 @@ vec2 look_dir(vec2 pos, float dir, float d) {
             );
 }
 
-float random (vec2 st) {
-    return fract(sin(dot(st.xy,
-                         vec2(12.9898,78.233)))*
-        43758.5453123);
-}
-
 void main(void){
     vec2 pos = texture(posData, vTexCoord).xy;
     float dir = texture(velData, vTexCoord).x;
-    float age = texture(velData, vTexCoord).y;
-    float rand = texture(velData, vTexCoord).z;
     vec3 goal = texture(colorData, vTexCoord).rgb;
+    vec3 rand = texture(randomData, vTexCoord).rgb;
+    vec3 life = texture(lifeData, vTexCoord).xyz;
+    float lifespan = life.x;
+    float age = life.y;
+    float is_active = life.z;
 
-    float look_amt = 0.03 * (1 + (1 - length(goal)));
-    float d = length(1/screen) * 2 * (1 + length(goal));
+    float look_amt = 0.03;
+    float d = length(1/screen) * 8;
     float maxdp = 0;
     float idxmax = -1;
-    float dirmax = dir + random(pos) - 0.5;
+    float dirmax = dir + rand.x - 0.5;
     vec3 colormax = goal;
     for (int i = 0; i < look_segments; i++) {
         for (int j = 0; j < 2; j++) {
@@ -64,32 +61,16 @@ void main(void){
         }
     }
     
-    float mx = 0.5 + random(pos * dir) * 0.5;
-    dir = dirmax;// mix(dir, dirmax, mx);
-
+    dir = dirmax;
+    /*
     pos.x += cos(dir) * timestep;
     pos.y += sin(dir) * timestep;
 
     vec3 color_at_next_loc = texture(trailData, pos).xyz;
     if (idxmax != -1 && distance(color_at_next_loc, goal) < 0.1) {
-        dir += PI + rand - 0.5;
-        age = 1.0;
+        dir += PI + rand.y - 0.5;
     }
+    */
     
-    if (length(goal) == 0) {
-        age = 1.0;
-    }
-    
-    age -= 1.0;
-    if (age <= 0.0) {
-        age = 500.0 + round(random(rand * dir * pos) * 50);
-        //dir = texture(velData, vec2(0,0)).x;
-    }
-
-    if (pos.x < 0 || pos.y < 0 || pos.x > 1 || pos.y > 1) {
-        age = 0.0;
-        //dir = texture(velData, vec2(int(vTexCoord.x / 2), int(vTexCoord.y / 2))).x;
-    }
-
-    vFragColor = vec4(dir, age, random(pos * dir * rand), /*max(random(pos * rand), 1.0),*/ 1.0);
+    vFragColor = vec4(dir, 1.0, 1.0, /*max(random(pos * rand), 1.0),*/ 1.0);
 }

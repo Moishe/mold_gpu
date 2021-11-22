@@ -2,41 +2,41 @@
 
 uniform sampler2DRect prevPosData;
 uniform sampler2DRect velData;
+uniform sampler2DRect lifeData;
+uniform sampler2DRect randomData;
 
 uniform float timestep;
-uniform float locx;
-uniform float locy;
-uniform float maxage;
+uniform float numParticlesSqrt;
 
 in vec2 vTexCoord;
 
 out vec4 vFragColor;
 
-float random (vec2 st) {
-    return fract(sin(dot(st.xy,
-                         vec2(12.9898,78.233)))*
-        43758.5453123);
-}
-
 void main(void){
     vec2 pos = texture(prevPosData, vTexCoord).xy;
     float dir = texture(velData, vTexCoord).x;
-    float age = texture(velData, vTexCoord).y;
+    vec3 lifeData = texture(lifeData, vTexCoord).xyz;
+    float lifespan = lifeData.x;
+    float age = lifeData.y;
+    float is_active = lifeData.z;
 
-    pos.x += cos(dir) * timestep;
-    pos.y += sin(dir) * timestep;
-
-    if (age <= 0 || pos.x >= 1.0 || pos.y >= 1.0 || pos.x <= 0 || pos.y <= 0) {
-        if (vTexCoord.x == 0 && vTexCoord.y == 0) {
-            pos.x = 0.5;
-            pos.y = 0.5;
+    if (is_active == 1 && age > 0) {
+        pos.x += cos(dir) * timestep;
+        pos.y += sin(dir) * timestep;
+    } else if (is_active == 1 && age == 0) {
+        vec2 randpos = texture(randomData, vTexCoord).xy * numParticlesSqrt;
+        randpos.x = int(randpos.x);
+        randpos.y = int(randpos.y);
+        vec2 newpos = texture(prevPosData, randpos).xy;
+        if (newpos.x >= 0 && newpos.y >= 0) {
+            pos = newpos;
         } else {
-            pos = texture(prevPosData, vec2(vTexCoord.x - 1, vTexCoord.y - 1)).xy;
-            if (pos.x > 1.0 || pos.y > 1.0 || pos.x < 0 || pos.y < 0) {
-                pos.x = 0.5;
-                pos.y = 0.5;
-            }
+            pos.x = randpos.x;
+            pos.y = randpos.y;
         }
+    } else {
+        pos.x = -1;
+        pos.y = -1;
     }
 
     vFragColor = vec4(pos.x, pos.y, 1.0, 1.0);
