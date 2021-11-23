@@ -13,6 +13,7 @@ void main(void){
     vec3 lifeData = texture(prevLifeData, vTexCoord).xyz;
     vec2 pos = texture(prevPosData, vTexCoord).xy;
     vec3 color = texture(colorData, vTexCoord).xyz;
+    vec3 random = texture(randomData, vTexCoord).xyz;
 
     float lifespan = lifeData.x;
     float age = lifeData.y;
@@ -33,10 +34,11 @@ void main(void){
             //lifespan *= length(color) * length(color);
         }
     } else {
-        vec3 random = texture(randomData, vTexCoord).xyz;
-        is_active = 1;
-        age = 0;
-        lifespan = 512; // magic number
+        if (random.x < 0.01) {
+            is_active = 1;
+            age = 0;
+            lifespan = 512 + int(1024 * random.y); // magic number
+        }
     }
 
     vFragColor = vec4(lifespan, age, is_active, 1.0);

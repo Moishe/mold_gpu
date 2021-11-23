@@ -20,15 +20,15 @@ void main(void) {
     
     vec3 goalColor = texture(prevColorData, vTexCoord).rgb;
     vec3 origColor = texture(origImageData, pos).rgb;
+    vec3 sharedActorGoal = texture(prevColorData, vTexCoord).xyz;
 
     if (age == 0.0 && is_active == 1.0) {
-        vec3 sharedActorGoal = texture(prevColorData, vTexCoord).xyz;
         vFragColor = vec4(sharedActorGoal, 1);
     } else if (age == 1.0 && is_active == 1.0) {
-        vFragColor = vec4(goalColor * 1.1, 1.0);
+        vFragColor = vec4(goalColor, 1.0);
         //vFragColor = vec4(origColor, 1.0);
     } else if (age == 2.0 && is_active == 1.0) {
-        vFragColor = vec4(mix(origColor * 1.1, goalColor, 0.1), 1.0);
+        vFragColor = vec4(min(vec3(1,1,1), mix(origColor, goalColor, 0.1)), 1.0);
     } else {
         vFragColor = vec4(goalColor, 1.0);
     }

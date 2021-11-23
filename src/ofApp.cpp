@@ -4,23 +4,23 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = true;
-    static const int seed_particles = 1024 * 512;
+    static const int seed_particles = 1024;
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 4096;
-    static constexpr float time_step_multiplier = 0.2;
+    static constexpr int num_particles_sqrt = 1024;
+    static constexpr float time_step_multiplier = 0.9;
 
     static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/lit-trees-smaller.jpg";
     
-    static constexpr float min_age = 32;
-    static constexpr float max_age = 64;
+    static constexpr float min_age = 1024;
+    static constexpr float max_age = 2048;
     
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
-    static constexpr float border = 0.05;
+    static constexpr float border = 0.01;
     
     /*
     static constexpr float offset_x[2] = {0.502, 0.725};
@@ -29,7 +29,7 @@ public:
     static constexpr float offset_x[1] = {0.5};
     static constexpr float offset_y[1] = {0.5};
 
-    static constexpr bool save_roll = true;
+    static constexpr bool save_roll = false;
     static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
     static constexpr int frame_increment = 3;
     static constexpr int max_frames = 60 * 60 * 3;
@@ -224,19 +224,7 @@ void ofApp::update() {
     updateColor.end();
     colorPingPong.dst->end();
     colorPingPong.swap();
-/*
-    ofFloatPixels pixels;
-    lifePingPong.src->getTexture().readToPixels(pixels);
-    
-    ofFloatPixels positionPixels;
-    posPingPong.src->getTexture().readToPixels(positionPixels);
-     
-    ofFloatPixels colorPixels;
-    colorPingPong.src->getTexture().readToPixels(colorPixels);
-    
-    ofFloatPixels imgPixels;
-    img.getTexture().readToPixels(imgPixels);
-*/
+
     velPingPong.dst->begin();
     ofClear(0);
     updateVel.begin();
@@ -301,19 +289,23 @@ void ofApp::update() {
     ofPopStyle();
     
     static int step = 0;
-    if (Config::save_roll && (step % Config::frame_increment == 0) && (step < Config::max_frames * Config::frame_increment)) {
-        ofPixels pixels;
-        renderFBO.src->getTexture().readToPixels(pixels);
-        ofImage img(pixels);
-        std::stringstream ss;
-        ss << Config::frame_dir << "/" << Config::file_prefix << "-";
-        ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::frame_increment));
-        ss << ".jpg";
+    if (Config::save_roll) {
+        if (step % Config::frame_increment == 0) {
+            ofPixels pixels;
+            renderFBO.src->getTexture().readToPixels(pixels);
+            ofImage img(pixels);
+            std::stringstream ss;
+            ss << Config::frame_dir << "/" << Config::file_prefix << "-";
+            ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::frame_increment));
+            ss << ".jpg";
+            
+            string fullname = ss.str();
+            img.save(fullname);
+        }
         
-        string fullname = ss.str();
-        img.save(fullname);
-    } else if (step >= Config::max_frames) {
-        ofExit();
+        if (step > Config::max_frames * Config::frame_increment) {
+            ofExit();
+        }
     }
     step++;
 }
@@ -324,9 +316,30 @@ void ofApp::draw(){
     
     ofSetColor(255,255,255);
     renderFBO.dst->draw(0,0, ofGetWindowWidth(), ofGetWindowHeight());
-
+    int active_cells = 0;
+    int cells_in_bounds = 0;
+/*
+    ofFloatPixels pixels;
+    lifePingPong.src->getTexture().readToPixels(pixels);
+    
+    ofFloatPixels positionPixels;
+    posPingPong.src->getTexture().readToPixels(positionPixels);
+    
+    for (int i = 0; i < numParticlesSqrt * numParticlesSqrt; i++) {
+        int idx = i * 3;
+        if (pixels[idx + 2] == 1.0) {
+            active_cells++;
+        }
+        
+        float x = positionPixels[idx];
+        float y = positionPixels[idx + 1];
+        if (x >= 0 && x < 1 && y > 0 && y <= 1) {
+            cells_in_bounds++;
+        }
+    }
+*/
     ofSetColor(255);
-    ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()) + ": " + ofToString(float(mouseX) / float(768)) + ", " + ofToString(float(mouseY) / float(768 * (float(height) / float(width)))), 15, 15);
+    ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()) + ": " + ofToString(active_cells) + ", " + ofToString(cells_in_bounds), 15, 15);
 }
 
 //--------------------------------------------------------------
