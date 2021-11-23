@@ -1,12 +1,11 @@
 #version 330 core
 
-uniform sampler2DRect origImageData;
 uniform sampler2DRect prevColorData;
 uniform sampler2DRect posData;
+uniform sampler2DRect origImageData;
 uniform sampler2DRect lifeData;
 
 uniform vec2 screen;
-uniform float numParticlesSqrt;
 
 in vec2 vTexCoord;
 
@@ -19,15 +18,17 @@ void main(void) {
     float age = life.y;
     float is_active = life.z;
     
-    vec3 goalColor = texture(prevColorData, vTexCoord).rgb; // vec4(0.6, 0.2, 0.2, 1.0);
+    vec3 goalColor = texture(prevColorData, vTexCoord).rgb;
     vec3 origColor = texture(origImageData, pos).rgb;
 
     if (age == 0.0 && is_active == 1.0) {
-        pos = texture(posData, vTexCoord).xy;
-        vFragColor = vec4(pos, 1.0, 1.0); //vec4(mix(origColor * 1.2, spawnColor, 0.001), 1.0);
-        //vFragColor = vec4(origColor, 1.0);
+        vec3 sharedActorGoal = texture(prevColorData, vTexCoord).xyz;
+        vFragColor = vec4(sharedActorGoal, 1);
     } else if (age == 1.0 && is_active == 1.0) {
-        vFragColor = vec4(origColor, 1.0);
+        vFragColor = vec4(goalColor * 1.1, 1.0);
+        //vFragColor = vec4(origColor, 1.0);
+    } else if (age == 2.0 && is_active == 1.0) {
+        vFragColor = vec4(mix(origColor * 1.1, goalColor, 0.1), 1.0);
     } else {
         vFragColor = vec4(goalColor, 1.0);
     }

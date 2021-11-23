@@ -9,30 +9,31 @@ public:
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 1024;
-    static constexpr float time_step_multiplier = 0.9;
+    static constexpr int num_particles_sqrt = 4096;
+    static constexpr float time_step_multiplier = 0.2;
 
-    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/eclipse.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/lit-trees-smaller.jpg";
     
-    static constexpr float min_age = 2048;
-    static constexpr float max_age = 4096;
+    static constexpr float min_age = 32;
+    static constexpr float max_age = 64;
     
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
-    static constexpr float border = 0.45;
+    static constexpr float border = 0.05;
+    
+    /*
     static constexpr float offset_x[2] = {0.502, 0.725};
     static constexpr float offset_y[2] = {0.901, 0.185};
-    /*
+     */
     static constexpr float offset_x[1] = {0.5};
     static constexpr float offset_y[1] = {0.5};
-     */
 
-    static constexpr bool save_roll = false;
-    static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/eclipse";
+    static constexpr bool save_roll = true;
+    static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
     static constexpr int frame_increment = 3;
     static constexpr int max_frames = 60 * 60 * 3;
-    static constexpr char *file_prefix = "zxx";
+    static constexpr char *file_prefix = "dense";
 };
 
 //--------------------------------------------------------------
@@ -147,7 +148,13 @@ void ofApp::setup(){
     // Allocate the final
     renderFBO.allocate(width, height, GL_RGB32F);
     renderFBO.dst->begin();
-    ofClear(0, 0, 0, 255);
+    // Seed the render buffer with the original image.
+    if (Config::seed_orig_image) {
+        renderFBO.dst->getTexture().loadData(img.getPixels());
+        renderFBO.src->getTexture().loadData(img.getPixels());
+    } else {
+        ofClear(0, 0, 0, 255);
+    }
     renderFBO.dst->end();
 
     mesh.setMode(OF_PRIMITIVE_POINTS);
@@ -158,10 +165,16 @@ void ofApp::setup(){
         }
     }
 
-    // Seed the render buffer with the original image.
-    if (Config::seed_orig_image) {
-        renderFBO.dst->getTexture().loadData(img.getPixels());
-        renderFBO.src->getTexture().loadData(img.getPixels());
+    for (int i = 0; i < 2; i++) {
+        renderFBO.dst->begin();
+        updateBlur.begin();
+        updateBlur.setUniformTexture("image", renderFBO.src->getTexture(), 0);
+        updateBlur.setUniform1i("horizontal", i == 0);
+        updateBlur.setUniform2f("screen", (float)width, (float)height);
+        renderFBO.src->draw(0,0);
+        updateBlur.end();
+        renderFBO.dst->end();
+        renderFBO.swap();
     }
 }
 
@@ -202,17 +215,16 @@ void ofApp::update() {
 
     colorPingPong.dst->begin();
     updateColor.begin();
-    updateColor.setUniformTexture("origImageData", img.getTexture(), 0);
-    updateColor.setUniformTexture("prevColorData", colorPingPong.src->getTexture(), 1);
-    updateColor.setUniformTexture("posData", posPingPong.src->getTexture(), 2);
+    updateColor.setUniformTexture("prevColorData", colorPingPong.src->getTexture(), 0);
+    updateColor.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
+    updateColor.setUniformTexture("origImageData", img.getTexture(), 2);
     updateColor.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 3);
     updateColor.setUniform2f("screen", (float)width, (float)height);
-    updatePos.setUniform1f("numParticlesSqrt", numParticlesSqrt);
     colorPingPong.src->draw(0, 0);
     updateColor.end();
     colorPingPong.dst->end();
     colorPingPong.swap();
-
+/*
     ofFloatPixels pixels;
     lifePingPong.src->getTexture().readToPixels(pixels);
     
@@ -224,7 +236,7 @@ void ofApp::update() {
     
     ofFloatPixels imgPixels;
     img.getTexture().readToPixels(imgPixels);
-
+*/
     velPingPong.dst->begin();
     ofClear(0);
     updateVel.begin();

@@ -20,19 +20,19 @@
                value = "pixels[0]">
             </PersistentString>
             <PersistentString
-               value = "imgPixels[colorPixels[0] + colorPixels[1] * width + 1]">
+               value = "imgPixels[positionPixels[0] + positionPixels[1] * width + 1]">
+            </PersistentString>
+            <PersistentString
+               value = "imgPixels[positionPixels[0] + positionPixels[1] * width + 2]">
             </PersistentString>
             <PersistentString
                value = "positionPixels[1]">
             </PersistentString>
             <PersistentString
-               value = "imgPixels[colorPixels[0] + colorPixels[1] * width + 2]">
+               value = "imgPixels[positionPixels[0] + positionPixels[1] * width]">
             </PersistentString>
             <PersistentString
                value = "pixels[2]">
-            </PersistentString>
-            <PersistentString
-               value = "imgPixels[colorPixels[0] + colorPixels[1] * width]">
             </PersistentString>
             <PersistentString
                value = "colorPixels[2]">

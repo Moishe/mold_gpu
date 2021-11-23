@@ -26,7 +26,7 @@ public:
 		// Clean
 		clear();
 	}
-
+    
 	void swap(){
 		std::swap(src,dst);
 	}

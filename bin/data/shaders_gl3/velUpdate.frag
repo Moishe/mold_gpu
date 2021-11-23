@@ -40,8 +40,8 @@ void main(void){
     if (is_active == 1.0 && age == 0.0) {
         dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314;
     } else {
-        float look_amt = 0.1;
-        float d = length(1/screen) * 6.0;
+        float look_amt = 0.03;
+        float d = length(1/screen) * 8.0;
         float maxdp = 0;
         float idxmax = -1;
         float dirmax = dir;
@@ -58,7 +58,7 @@ void main(void){
                 vec2 dir_p = look_dir(pos, dirlook, d);
                 //vec3 dest = texture(trailData, dir_p).xyz;
                 //vec3 dest = texture(origImageData, dir_p).xyz;
-                vec3 dest = mix(texture(trailData, dir_p).xyz, texture(origImageData, dir_p).xyz, 0.3);
+                vec3 dest = mix(texture(trailData, dir_p).xyz, texture(origImageData, dir_p).xyz, 0.6);
                 float dot_p = abs(dot(goal, dest));
                 if (dot_p > maxdp) {
                     maxdp = dot_p;
@@ -69,8 +69,8 @@ void main(void){
             }
         }
         
-        dirmax += (rand.x - 0.5) * 0.001;
-        dir = mix(dir, dirmax, 0.5);
+        dirmax += (rand.x - 0.5) * 0.01;
+        dir = mix(dir, dirmax, 0.6);
     }
 
     
