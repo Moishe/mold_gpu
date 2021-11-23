@@ -20,19 +20,26 @@ void main(void){
     float age = lifeData.y;
     float is_active = lifeData.z;
 
-    if (is_active == 1 && age > 0) {
+    if (is_active == 1 && age > 1.0) {
         pos.x += cos(dir) * timestep;
         pos.y += sin(dir) * timestep;
     } else if (is_active == 1 && age == 0) {
-        vec2 randpos = texture(randomData, vTexCoord).xy * numParticlesSqrt;
-        randpos.x = int(randpos.x);
-        randpos.y = int(randpos.y);
-        vec2 newpos = texture(prevPosData, randpos).xy;
-        if (newpos.x >= 0 && newpos.y >= 0) {
+        if (pos.x >= 0 && pos.y >= 0 && pos.x < 1 && pos.y < 1) {
+            vec2 newpos = texture(randomData, vTexCoord).xy;
+            pos.x = int(pos.x * newpos.x * numParticlesSqrt);
+            pos.y = int(pos.y * newpos.y * numParticlesSqrt);
+        } else {
+            pos = texture(randomData, vTexCoord).xy * numParticlesSqrt;
+            pos.x = int(pos.x);
+            pos.y = int(pos.y / 2);
+        }
+    } else if (is_active == 1.0 && age == 1.0) {
+        vec2 newpos = texture(prevPosData, pos).xy;
+        if (newpos.x >= 0 && newpos.y >= 0 && newpos.x < 1 && newpos.y < 1) {
             pos = newpos;
         } else {
-            pos.x = randpos.x;
-            pos.y = randpos.y;
+            pos.x = -1;
+            pos.y = -1;
         }
     } else {
         pos.x = -1;

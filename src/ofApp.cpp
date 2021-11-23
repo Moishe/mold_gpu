@@ -3,19 +3,36 @@
 
 class Config {
 public:
-    static constexpr bool seed_orig_image = false;
-    static const int seed_particles = 1024;
+    static constexpr bool seed_orig_image = true;
+    static const int seed_particles = 1024 * 512;
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 2048;
-    static constexpr float time_step_multiplier = 0.3;
+    static constexpr int num_particles_sqrt = 1024;
+    static constexpr float time_step_multiplier = 0.9;
 
-    static constexpr char *imgName = "/Users/moishe/Desktop/flower-2.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/eclipse.jpg";
     
-    static constexpr float min_age = 100;
-    static constexpr float max_age = 100;
+    static constexpr float min_age = 2048;
+    static constexpr float max_age = 4096;
+    
+    static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
+    static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
+    
+    static constexpr float border = 0.45;
+    static constexpr float offset_x[2] = {0.502, 0.725};
+    static constexpr float offset_y[2] = {0.901, 0.185};
+    /*
+    static constexpr float offset_x[1] = {0.5};
+    static constexpr float offset_y[1] = {0.5};
+     */
+
+    static constexpr bool save_roll = false;
+    static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/eclipse";
+    static constexpr int frame_increment = 3;
+    static constexpr int max_frames = 60 * 60 * 3;
+    static constexpr char *file_prefix = "zxx";
 };
 
 //--------------------------------------------------------------
@@ -76,14 +93,22 @@ void ofApp::setup(){
     vector<float> randtex(numParticles * 3);
         
     for (int i = 0; i < numParticles; i++) {
-        float x = ofRandom(width);
-        float y = ofRandom(height);
-        
-        pos[i * 3 + 0] = 0.1 + (x / float(width)) * 0.8;// pos.x
-        pos[i * 3 + 1] = 0.1 + (y / float(height)) * 0.8;// pos.y
+        float x, y;
+        if (Config::seed_particle_x != 0 && Config::seed_particle_y != 0) {
+            x = Config::seed_particle_x * width;
+            y = Config::seed_particle_y * height;
+        } else {
+            x = ofRandom(width);
+            y = ofRandom(height);
+        }
+
+        int offset_idx = i % (sizeof(Config::offset_x) / sizeof(float));
+
+        pos[i * 3 + 0] = Config::border + (x / float(width)) * (1 - Config::border * 2) + (Config::offset_x[offset_idx] - 0.5);
+        pos[i * 3 + 1] = Config::border + (y / float(height)) * (1 - Config::border * 2) + (Config::offset_y[offset_idx] - 0.5);
         pos[i * 3 + 2] = 0;                             // pos.z (unused)
         
-        ofColor color = img.getColor(x, y) / 256.0;
+        ofFloatColor color = img.getColor(x, y);
         colors[i * 3 + 0] = color.r;                    // self-evident
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
@@ -94,7 +119,11 @@ void ofApp::setup(){
 
         if (i < Config::seed_particles) {
             float lifespan = ofRandom(Config::max_age) + Config::min_age;
-            life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
+            if (i == 0) {
+                life[i * 3 + 0] = 4; //lifespan;                     // life.x -> lifespan
+            } else {
+                life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
+            }
             life[i * 3 + 1] = 1.0;                          // life.y -> age
             life[i * 3 + 2] = 1.0;                          // life.z -> active (0 == false, 1 == true)
         } else {
@@ -150,6 +179,8 @@ void ofApp::update() {
     updateLife.setUniformTexture("prevLifeData", lifePingPong.src->getTexture(), 0);
     updateLife.setUniformTexture("prevPosData", posPingPong.src->getTexture(), 1);
     updateLife.setUniformTexture("randomData", randPingPong.src->getTexture(), 2);
+    updateLife.setUniformTexture("colorData", colorPingPong.src->getTexture(), 3);
+    updateLife.setUniformTexture("origImageData", img.getTexture(), 4);
     lifePingPong.src->draw(0, 0);
     updateLife.end();
     lifePingPong.dst->end();
@@ -168,24 +199,31 @@ void ofApp::update() {
     updatePos.end();
     posPingPong.dst->end();
     posPingPong.swap();
-    
+
+    colorPingPong.dst->begin();
+    updateColor.begin();
+    updateColor.setUniformTexture("origImageData", img.getTexture(), 0);
+    updateColor.setUniformTexture("prevColorData", colorPingPong.src->getTexture(), 1);
+    updateColor.setUniformTexture("posData", posPingPong.src->getTexture(), 2);
+    updateColor.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 3);
+    updateColor.setUniform2f("screen", (float)width, (float)height);
+    updatePos.setUniform1f("numParticlesSqrt", numParticlesSqrt);
+    colorPingPong.src->draw(0, 0);
+    updateColor.end();
+    colorPingPong.dst->end();
+    colorPingPong.swap();
+
     ofFloatPixels pixels;
     lifePingPong.src->getTexture().readToPixels(pixels);
     
     ofFloatPixels positionPixels;
     posPingPong.src->getTexture().readToPixels(positionPixels);
-
-    colorPingPong.dst->begin();
-    updateColor.begin();
-    updateColor.setUniformTexture("prevColorData", colorPingPong.src->getTexture(), 0);
-    updateColor.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
-    updateColor.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 2);
-    updateColor.setUniformTexture("origImageData", img.getTexture(), 3);
-    updateColor.setUniform2f("screen", (float)width, (float)height);
-    colorPingPong.src->draw(0, 0);
-    updateColor.end();
-    colorPingPong.dst->end();
-    colorPingPong.swap();
+     
+    ofFloatPixels colorPixels;
+    colorPingPong.src->getTexture().readToPixels(colorPixels);
+    
+    ofFloatPixels imgPixels;
+    img.getTexture().readToPixels(imgPixels);
 
     velPingPong.dst->begin();
     ofClear(0);
@@ -193,19 +231,18 @@ void ofApp::update() {
     updateVel.setUniformTexture("velData", velPingPong.src->getTexture(), 0);
     updateVel.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
     updateVel.setUniformTexture("colorData", colorPingPong.src->getTexture(), 2);
-    updateVel.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 3);
-    updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 4);
-    updateVel.setUniformTexture("randomData", randPingPong.src->getTexture(), 5);
+    updateVel.setUniformTexture("origImageData", img.getTexture(), 3);
+    updateVel.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 4);
+    updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 5);
+    updateVel.setUniformTexture("randomData", randPingPong.src->getTexture(), 6);
     updateVel.setUniform2f("screen", (float)width, (float)height);
     updateVel.setUniform1f("timestep", (float)timeStep);
+    updatePos.setUniform1f("numParticlesSqrt", numParticlesSqrt);
     velPingPong.src->draw(0, 0);
     updateVel.end();
     velPingPong.dst->end();
     velPingPong.swap();
         
-    ofFloatPixels randPixels;
-    randPingPong.src->getTexture().readToPixels(randPixels);
-
     randPingPong.dst->begin();
     ofClear(0);
     updateRand.begin();
@@ -214,8 +251,6 @@ void ofApp::update() {
     updateRand.end();
     randPingPong.dst->end();
     randPingPong.swap();
-
-    randPingPong.src->getTexture().readToPixels(randPixels);
 
     // Blur it
     for (int i = 0; i < 2; i++) {
@@ -253,23 +288,22 @@ void ofApp::update() {
     renderFBO.swap();
     ofPopStyle();
     
-    /*
-    if (save_roll && step % frame_increment == 0 && step < max_frames) {
+    static int step = 0;
+    if (Config::save_roll && (step % Config::frame_increment == 0) && (step < Config::max_frames * Config::frame_increment)) {
         ofPixels pixels;
         renderFBO.src->getTexture().readToPixels(pixels);
         ofImage img(pixels);
         std::stringstream ss;
-        ss << filename << "/" << "zzy" << "-";
-        ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / frame_increment));
+        ss << Config::frame_dir << "/" << Config::file_prefix << "-";
+        ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::frame_increment));
         ss << ".jpg";
         
         string fullname = ss.str();
         img.save(fullname);
-    } else if (step >= max_frames) {
+    } else if (step >= Config::max_frames) {
         ofExit();
     }
     step++;
-     */
 }
 
 //--------------------------------------------------------------
