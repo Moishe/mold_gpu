@@ -40,8 +40,8 @@ void main(void){
     if (is_active == 1.0 && age == 0.0) {
         dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314;
     } else {
-        float look_amt = 0.1;
-        float d = length(1/screen) * 7.0;
+        float look_amt = 0.07;
+        float d = length(1/screen) * 20.0;
         float maxdp = 0;
         float idxmax = -1;
         float dirmax = dir;

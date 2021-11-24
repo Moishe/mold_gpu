@@ -8,5 +8,5 @@ in vec4 vColor;
 out vec4 fColor;
 
 void main() {
-    fColor = vec4(vColor.rgb, 0.03); // * length(vColor.rgb)); //max(0.0, min(1.0, length(vColor.rgb))) / 20.0);
+    fColor = vec4(vColor.rgb, 0.01); // * length(vColor.rgb)); //max(0.0, min(1.0, length(vColor.rgb))) / 20.0);
 }

@@ -34,7 +34,7 @@ void main(void){
             //lifespan *= length(color) * length(color);
         }
     } else {
-        if (random.x < 0.01) {
+        if (random.x < 0.5) {
             is_active = 1;
             age = 0;
             lifespan = 128 + int(256 * random.y); // magic number

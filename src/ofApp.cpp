@@ -4,34 +4,41 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = true;
-    static const int seed_particles = 1024 * 256;
+    static const int seed_particles = 1024 * 128;
+    
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 1024;
-    static constexpr float time_step_multiplier = 0.9;
+    static constexpr int num_particles_sqrt = 4096;
+    static constexpr float time_step_multiplier = 0.7;
 
     static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/lit-trees-smaller.jpg";
     
-    static constexpr float min_age = 128;
-    static constexpr float max_age = 256;
+    static constexpr float min_age = 1280;
+    static constexpr float max_age = 2560;
     
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
-    static constexpr float border = 0.49;
+    static constexpr bool radial_fill = true;
+    static constexpr float radial_fill_radius = 0.9;
+    static constexpr float radial_fill_center_x = 0.5;
+    static constexpr float radial_fill_center_y = 0.9;
+    
+    static constexpr float border = 0.45;
     
     static constexpr float offset_x = 0.5;
-    static constexpr float offset_y = 0.5;
+    static constexpr float offset_y = 0.8;
     
+    static constexpr bool perform_total_refresh = false;
     static const int total_refresh_rate = 2048;
 
     static constexpr bool save_roll = true;
     static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
-    static constexpr int frame_increment = 1024;
-    static constexpr int max_frames = 60;
-    static constexpr char *file_prefix = "bloopers";
+    static constexpr int frame_increment = 8;
+    static constexpr int max_frames = 64 * 32;
+    static constexpr char *file_prefix = "radial";
 };
 
 //--------------------------------------------------------------
@@ -138,28 +145,43 @@ void ofApp::initializeBoard() {
         
     for (int i = 0; i < numParticles; i++) {
         float x, y;
-        if (Config::seed_particle_x != 0 && Config::seed_particle_y != 0) {
-            x = Config::seed_particle_x * width;
-            y = Config::seed_particle_y * height;
-        } else {
-            x = ofRandom(width);
-            y = ofRandom(height);
-        }
 
         int offset_idx = i % (sizeof(Config::offset_x) / sizeof(float));
-
-        pos[i * 3 + 0] = Config::border + (x / float(width)) * (1 - Config::border * 2) + (offset_x - 0.5);
-        pos[i * 3 + 1] = Config::border + (y / float(height)) * (1 - Config::border * 2) + (offset_y - 0.5);
-        pos[i * 3 + 2] = 0;                             // pos.z (unused)
         
-        ofFloatColor color = img.getColor(x, y);
+        float dir;
+        if (Config::radial_fill) {
+            float t = ofRandom(PI * 2);
+            float r = ofRandom(Config::radial_fill_radius);
+            x = Config::radial_fill_center_x + cos(t) * r;
+            y = Config::radial_fill_center_y + sin(t) * r;
+            dir = t;
+        } else {
+            if (Config::seed_particle_x != 0 && Config::seed_particle_y != 0) {
+                x = Config::seed_particle_x * width;
+                y = Config::seed_particle_y * height;
+            } else {
+                x = ofRandom(width);
+                y = ofRandom(height);
+            }
+            
+            x = Config::border + (x / float(width)) * (1 - Config::border * 2) + (offset_x - 0.5);
+            y = Config::border + (y / float(height)) * (1 - Config::border * 2) + (offset_y - 0.5);
+            
+            dir = ofRandom(PI * 2);
+        }
+
+        pos[i * 3 + 0] = x;
+        pos[i * 3 + 1] = y;
+        pos[i * 3 + 2] = 0;                             // pos.z (unused)
+
+        vel[i * 3 + 0] = dir;                           // vel.x -> direction
+        vel[i * 3 + 1] = timeStep;                      // vel.y -> speed
+        vel[i * 3 + 2] = 0;                             // vel.z (unused)
+
+        ofFloatColor color = img.getColor(min(int(x * width), width - 1), min(int(y * height), height - 1));
         colors[i * 3 + 0] = color.r;                    // self-evident
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
-        
-        vel[i * 3 + 0] = ofRandom(PI * 2);              // vel.x -> direction
-        vel[i * 3 + 1] = timeStep;                      // vel.y -> speed
-        vel[i * 3 + 2] = 0;                             // vel.z (unused)
 
         if (i < Config::seed_particles) {
             float lifespan = ofRandom(Config::max_age) + Config::min_age;
@@ -311,7 +333,7 @@ void ofApp::update() {
             ofImage img(pixels);
             std::stringstream ss;
             ss << Config::frame_dir << "/" << Config::file_prefix << "-";
-            ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::frame_increment + 2500));
+            ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::frame_increment));
             ss << ".jpg";
             
             string fullname = ss.str();
@@ -324,7 +346,7 @@ void ofApp::update() {
     }
     step++;
     
-    if (step % Config::total_refresh_rate == 0) {
+    if (Config::perform_total_refresh && step % Config::total_refresh_rate == 0) {
         initializeBoard();
     }
 }
