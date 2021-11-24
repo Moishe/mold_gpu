@@ -4,7 +4,7 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = true;
-    static const int seed_particles = 1024;
+    static const int seed_particles = 1024 * 256;
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
@@ -14,26 +14,24 @@ public:
 
     static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/lit-trees-smaller.jpg";
     
-    static constexpr float min_age = 1024;
-    static constexpr float max_age = 2048;
+    static constexpr float min_age = 128;
+    static constexpr float max_age = 256;
     
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
-    static constexpr float border = 0.01;
+    static constexpr float border = 0.49;
     
-    /*
-    static constexpr float offset_x[2] = {0.502, 0.725};
-    static constexpr float offset_y[2] = {0.901, 0.185};
-     */
-    static constexpr float offset_x[1] = {0.5};
-    static constexpr float offset_y[1] = {0.5};
+    static constexpr float offset_x = 0.5;
+    static constexpr float offset_y = 0.5;
+    
+    static const int total_refresh_rate = 2048;
 
-    static constexpr bool save_roll = false;
+    static constexpr bool save_roll = true;
     static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
-    static constexpr int frame_increment = 3;
-    static constexpr int max_frames = 60 * 60 * 3;
-    static constexpr char *file_prefix = "dense";
+    static constexpr int frame_increment = 1024;
+    static constexpr int max_frames = 60;
+    static constexpr char *file_prefix = "bloopers";
 };
 
 //--------------------------------------------------------------
@@ -87,64 +85,8 @@ void ofApp::setup(){
     
     // Then, we render our actors onto our render FBO, setting position and color based on the respective textures
     
-    vector<float> pos(numParticles * 3);
-    vector<float> colors(numParticles * 3);
-    vector<float> vel(numParticles * 3);
-    vector<float> life(numParticles * 3);
-    vector<float> randtex(numParticles * 3);
-        
-    for (int i = 0; i < numParticles; i++) {
-        float x, y;
-        if (Config::seed_particle_x != 0 && Config::seed_particle_y != 0) {
-            x = Config::seed_particle_x * width;
-            y = Config::seed_particle_y * height;
-        } else {
-            x = ofRandom(width);
-            y = ofRandom(height);
-        }
-
-        int offset_idx = i % (sizeof(Config::offset_x) / sizeof(float));
-
-        pos[i * 3 + 0] = Config::border + (x / float(width)) * (1 - Config::border * 2) + (Config::offset_x[offset_idx] - 0.5);
-        pos[i * 3 + 1] = Config::border + (y / float(height)) * (1 - Config::border * 2) + (Config::offset_y[offset_idx] - 0.5);
-        pos[i * 3 + 2] = 0;                             // pos.z (unused)
-        
-        ofFloatColor color = img.getColor(x, y);
-        colors[i * 3 + 0] = color.r;                    // self-evident
-        colors[i * 3 + 1] = color.g;
-        colors[i * 3 + 2] = color.b;
-        
-        vel[i * 3 + 0] = ofRandom(PI * 2);              // vel.x -> direction
-        vel[i * 3 + 1] = timeStep;                      // vel.y -> speed
-        vel[i * 3 + 2] = 0;                             // vel.z (unused)
-
-        if (i < Config::seed_particles) {
-            float lifespan = ofRandom(Config::max_age) + Config::min_age;
-            if (i == 0) {
-                life[i * 3 + 0] = 4; //lifespan;                     // life.x -> lifespan
-            } else {
-                life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
-            }
-            life[i * 3 + 1] = 1.0;                          // life.y -> age
-            life[i * 3 + 2] = 1.0;                          // life.z -> active (0 == false, 1 == true)
-        } else {
-            // inactive actor
-            life[i * 3 + 0] = 0;
-            life[i * 3 + 1] = 0.0;
-            life[i * 3 + 1] = 0.0;
-        }
-        
-        randtex[i * 3 + 0] = ofRandom(1.0);             // pseudorandom numbers to seed the LCG
-        randtex[i * 3 + 1] = ofRandom(1.0);             // note that if we want reproducible results,
-        randtex[i * 3 + 2] = ofRandom(1.0);             // we could seed these with predictable numbers
-    }
+    initializeBoard();
     
-    allocateAndLoad(posPingPong, pos);
-    allocateAndLoad(colorPingPong, colors);
-    allocateAndLoad(velPingPong, vel);
-    allocateAndLoad(lifePingPong, life);
-    allocateAndLoad(randPingPong, randtex);
-
     // Allocate the final
     renderFBO.allocate(width, height, GL_RGB32F);
     renderFBO.dst->begin();
@@ -178,8 +120,81 @@ void ofApp::setup(){
     }
 }
 
+void ofApp::initializeBoard() {
+    static bool has_initialized = false;
+    float offset_x = Config::offset_x;
+    float offset_y = Config::offset_y;
+    if (has_initialized) {
+        offset_x = ofRandom(1.0);
+        offset_y = ofRandom(1.0);
+    } else {
+        has_initialized = true;
+    }
+    vector<float> pos(numParticles * 3);
+    vector<float> colors(numParticles * 3);
+    vector<float> vel(numParticles * 3);
+    vector<float> life(numParticles * 3);
+    vector<float> randtex(numParticles * 3);
+        
+    for (int i = 0; i < numParticles; i++) {
+        float x, y;
+        if (Config::seed_particle_x != 0 && Config::seed_particle_y != 0) {
+            x = Config::seed_particle_x * width;
+            y = Config::seed_particle_y * height;
+        } else {
+            x = ofRandom(width);
+            y = ofRandom(height);
+        }
+
+        int offset_idx = i % (sizeof(Config::offset_x) / sizeof(float));
+
+        pos[i * 3 + 0] = Config::border + (x / float(width)) * (1 - Config::border * 2) + (offset_x - 0.5);
+        pos[i * 3 + 1] = Config::border + (y / float(height)) * (1 - Config::border * 2) + (offset_y - 0.5);
+        pos[i * 3 + 2] = 0;                             // pos.z (unused)
+        
+        ofFloatColor color = img.getColor(x, y);
+        colors[i * 3 + 0] = color.r;                    // self-evident
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+        
+        vel[i * 3 + 0] = ofRandom(PI * 2);              // vel.x -> direction
+        vel[i * 3 + 1] = timeStep;                      // vel.y -> speed
+        vel[i * 3 + 2] = 0;                             // vel.z (unused)
+
+        if (i < Config::seed_particles) {
+            float lifespan = ofRandom(Config::max_age) + Config::min_age;
+            if (i == 0) {
+                life[i * 3 + 0] = 4; //this is for debugging    // life.x -> lifespan
+            } else {
+                life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
+            }
+            life[i * 3 + 1] = 1.0;                          // life.y -> age
+            life[i * 3 + 2] = 1.0;                          // life.z -> active (0 == false, 1 == true)
+        } else {
+            // inactive actor
+            life[i * 3 + 0] = 0;
+            life[i * 3 + 1] = 0.0;
+            life[i * 3 + 1] = 0.0;
+        }
+        
+        randtex[i * 3 + 0] = ofRandom(1.0);             // pseudorandom numbers to seed the LCG
+        randtex[i * 3 + 1] = ofRandom(1.0);             // note that if we want reproducible results,
+        randtex[i * 3 + 2] = ofRandom(1.0);             // we could seed these with predictable numbers
+    }
+    
+    allocateAndLoad(posPingPong, pos);
+    allocateAndLoad(colorPingPong, colors);
+    allocateAndLoad(velPingPong, vel);
+    allocateAndLoad(lifePingPong, life);
+    allocateAndLoad(randPingPong, randtex);
+}
+
 void ofApp::allocateAndLoad(pingPongBuffer &buf, vector<float> &data) {
     buf.allocate(numParticlesSqrt, numParticlesSqrt, GL_RGB32F);
+    loadData(buf, data);
+}
+
+void ofApp::loadData(pingPongBuffer &buf, vector<float> &data) {
     buf.src->getTexture().loadData(data.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
     buf.dst->getTexture().loadData(data.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
 }
@@ -296,7 +311,7 @@ void ofApp::update() {
             ofImage img(pixels);
             std::stringstream ss;
             ss << Config::frame_dir << "/" << Config::file_prefix << "-";
-            ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::frame_increment));
+            ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::frame_increment + 2500));
             ss << ".jpg";
             
             string fullname = ss.str();
@@ -308,6 +323,10 @@ void ofApp::update() {
         }
     }
     step++;
+    
+    if (step % Config::total_refresh_rate == 0) {
+        initializeBoard();
+    }
 }
 
 //--------------------------------------------------------------
@@ -344,7 +363,7 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-
+    initializeBoard();
 }
 
 //--------------------------------------------------------------

@@ -13,7 +13,7 @@ uniform float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.0
 out vec4 vFragColor;
 
 void main() {
-    vec2 tex_offset = 0.11 * vec2(1, 1);
+    vec2 tex_offset = 0.124 * vec2(1, 1);
     vec3 result = texture(image, vTexCoord).rgb * weight[0]; // current fragment’s contribution
     if(horizontal)
     {

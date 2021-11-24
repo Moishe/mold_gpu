@@ -56,9 +56,11 @@ void main(void){
                 }
                 float dirlook = dir + float(i) * look_amt * mul;
                 vec2 dir_p = look_dir(pos, dirlook, d);
-                //vec3 dest = texture(trailData, dir_p).xyz;
-                //vec3 dest = texture(origImageData, dir_p).xyz;
-                vec3 dest = mix(texture(trailData, dir_p).xyz, texture(origImageData, dir_p).xyz, 0.1);
+                //vec3 trail_dest = normalize(texture(trailData, dir_p).xyz);
+                //vec3 orig_dest = normalize(texture(origImageData, dir_p).xyz);
+                vec3 trail_dest = texture(trailData, dir_p).xyz;
+                vec3 orig_dest = texture(origImageData, dir_p).xyz;
+                vec3 dest = trail_dest; //mix(trail_dest, orig_dest, 0.1);
                 float dot_p = abs(dot(goal, dest));
                 if (dot_p > maxdp) {
                     maxdp = dot_p;

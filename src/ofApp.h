@@ -97,5 +97,8 @@ public:
 	ofVboMesh mesh;
     
 private:
+    void initializeBoard();
+
     void allocateAndLoad(pingPongBuffer &buf, vector<float> &data);
+    void loadData(pingPongBuffer &buf, vector<float> &data);
 };
