@@ -91,13 +91,14 @@ public:
 	float   timeStep;
 
 	int     width, height;
+    int     window_width, window_height;
     int     numParticlesSqrt;
 	int     numParticles;
 
 	ofVboMesh mesh;
     
 private:
-    void initializeBoard();
+    void initializeBoard(int x=-1, int y=-1);
 
     void allocateAndLoad(pingPongBuffer &buf, vector<float> &data);
     void loadData(pingPongBuffer &buf, vector<float> &data);

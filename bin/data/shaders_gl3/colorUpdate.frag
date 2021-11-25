@@ -28,7 +28,7 @@ void main(void) {
         vFragColor = vec4(goalColor, 1.0);
         //vFragColor = vec4(origColor, 1.0);
     } else if (age == 2.0 && is_active == 1.0) {
-        vFragColor = vec4(origColor, 1.0);
+        vFragColor = vec4(mix(goalColor, origColor, 0.9), 1.0);
     } else {
         vFragColor = vec4(goalColor, 1.0);
     }

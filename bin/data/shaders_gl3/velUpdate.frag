@@ -38,10 +38,10 @@ void main(void){
     float is_active = life.z;
     
     if (is_active == 1.0 && age == 0.0) {
-        dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314;
+        dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314 * 3;
     } else {
-        float look_amt = 0.07;
-        float d = length(1/screen) * 20.0;
+        float look_amt = 0.1;
+        float d = length(1/screen) * 5.0;
         float maxdp = 0;
         float idxmax = -1;
         float dirmax = dir;
@@ -60,7 +60,8 @@ void main(void){
                 //vec3 orig_dest = normalize(texture(origImageData, dir_p).xyz);
                 vec3 trail_dest = texture(trailData, dir_p).xyz;
                 vec3 orig_dest = texture(origImageData, dir_p).xyz;
-                vec3 dest = trail_dest; //mix(trail_dest, orig_dest, 0.1);
+                vec3 dest = mix(normalize(trail_dest), trail_dest, 0.9);
+                goal = mix(normalize(goal), goal, 0.9);
                 float dot_p = abs(dot(goal, dest));
                 if (dot_p > maxdp) {
                     maxdp = dot_p;
@@ -71,7 +72,7 @@ void main(void){
             }
         }
         
-        dirmax += (rand.x - 0.5) * 0.01;
+        dirmax += (rand.x - 0.5) * 0.1;
         dir = mix(dir, dirmax, 0.6);
     }
 

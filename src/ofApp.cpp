@@ -4,37 +4,37 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = true;
-    static const int seed_particles = 1024 * 128;
+    static const int seed_particles = 1024 * 1024;
     
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 4096;
-    static constexpr float time_step_multiplier = 0.7;
+    static constexpr int num_particles_sqrt = 1280;
+    static constexpr float time_step_multiplier = 0.5;
 
-    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/lit-trees-smaller.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/eclipse.jpg";
     
-    static constexpr float min_age = 1280;
-    static constexpr float max_age = 2560;
+    static constexpr float min_age = 128;
+    static constexpr float max_age = 256;
     
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
-    static constexpr bool radial_fill = true;
-    static constexpr float radial_fill_radius = 0.9;
+    static constexpr bool radial_fill = false;
+    static constexpr float radial_fill_radius = 0.02;
     static constexpr float radial_fill_center_x = 0.5;
-    static constexpr float radial_fill_center_y = 0.9;
+    static constexpr float radial_fill_center_y = 0.8;
     
-    static constexpr float border = 0.45;
+    static constexpr float border = 0.02;
     
     static constexpr float offset_x = 0.5;
-    static constexpr float offset_y = 0.8;
+    static constexpr float offset_y = 0.5;
     
     static constexpr bool perform_total_refresh = false;
     static const int total_refresh_rate = 2048;
 
-    static constexpr bool save_roll = true;
+    static constexpr bool save_roll = false;
     static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
     static constexpr int frame_increment = 8;
     static constexpr int max_frames = 64 * 32;
@@ -127,16 +127,22 @@ void ofApp::setup(){
     }
 }
 
-void ofApp::initializeBoard() {
-    static bool has_initialized = false;
-    float offset_x = Config::offset_x;
-    float offset_y = Config::offset_y;
-    if (has_initialized) {
-        offset_x = ofRandom(1.0);
-        offset_y = ofRandom(1.0);
+void ofApp::initializeBoard(int x, int y) {
+    float offset_x;
+    float offset_y;
+
+    if (x != -1 && y != -1) {
+        offset_x = float(x) / float(window_width);
+        offset_y = float(y) / float(window_height);
+    } else if (Config::radial_fill) {
+        offset_x = Config::radial_fill_center_x;
+        offset_y = Config::radial_fill_center_y;
     } else {
-        has_initialized = true;
+        offset_x = Config::offset_x;
+        offset_y = Config::offset_y;
     }
+
+    
     vector<float> pos(numParticles * 3);
     vector<float> colors(numParticles * 3);
     vector<float> vel(numParticles * 3);
@@ -146,15 +152,13 @@ void ofApp::initializeBoard() {
     for (int i = 0; i < numParticles; i++) {
         float x, y;
 
-        int offset_idx = i % (sizeof(Config::offset_x) / sizeof(float));
-        
         float dir;
         if (Config::radial_fill) {
             float t = ofRandom(PI * 2);
             float r = ofRandom(Config::radial_fill_radius);
-            x = Config::radial_fill_center_x + cos(t) * r;
-            y = Config::radial_fill_center_y + sin(t) * r;
-            dir = t;
+            x = offset_x + cos(t) * r;
+            y = offset_y + sin(t) * r / (float(height) / float(width));
+            dir = ofRandom(PI * 2);
         } else {
             if (Config::seed_particle_x != 0 && Config::seed_particle_y != 0) {
                 x = Config::seed_particle_x * width;
@@ -178,10 +182,10 @@ void ofApp::initializeBoard() {
         vel[i * 3 + 1] = timeStep;                      // vel.y -> speed
         vel[i * 3 + 2] = 0;                             // vel.z (unused)
 
-        ofFloatColor color = img.getColor(min(int(x * width), width - 1), min(int(y * height), height - 1));
-        colors[i * 3 + 0] = color.r;                    // self-evident
-        colors[i * 3 + 1] = color.g;
-        colors[i * 3 + 2] = color.b;
+        ofFloatColor color = img.getColor(max(0, min(int(x * width), width - 1)), max(0, min(int(y * height), height - 1)));
+        colors[i * 3 + 0] = 0; //color.r;                    // self-evident
+        colors[i * 3 + 1] = 0; //color.g;
+        colors[i * 3 + 2] = 0; //color.b;
 
         if (i < Config::seed_particles) {
             float lifespan = ofRandom(Config::max_age) + Config::min_age;
@@ -385,7 +389,17 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-    initializeBoard();
+    if (key == ' ') {
+        initializeBoard();
+    } else if (key == 's') {
+        ofPixels pix;
+        renderFBO.dst->getTexture().readToPixels(pix);
+        ofImage img(pix);
+        std::string filename = "/Users/moishe/gen-images/saved-image-foobar";
+        //filename.append(gen_random(5));
+        filename.append(".jpg");
+        img.save(filename);
+    }
 }
 
 //--------------------------------------------------------------
@@ -410,15 +424,7 @@ void ofApp::mousePressed(int x, int y, int button){
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
-    
-    ofPixels pix;
-    renderFBO.dst->getTexture().readToPixels(pix);
-    ofImage img(pix);
-    std::string filename = "/Users/moishe/gen-images/saved-image-foobar";
-    //filename.append(gen_random(5));
-    filename.append(".jpg");
-    img.save(filename);
-
+    initializeBoard(x, y);
 }
 
 //--------------------------------------------------------------
@@ -433,7 +439,8 @@ void ofApp::mouseExited(int x, int y){
 
 //--------------------------------------------------------------
 void ofApp::windowResized(int w, int h){
-
+    window_width = w;
+    window_height = h;
 }
 
 //--------------------------------------------------------------
