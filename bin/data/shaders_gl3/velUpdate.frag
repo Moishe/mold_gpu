@@ -26,6 +26,10 @@ vec2 look_dir(vec2 pos, float dir, float d) {
             );
 }
 
+float sigmoid(float f) {
+    return f / (1 + pow(2.718281828459, f));
+}
+
 void main(void){
     vec2 pos = texture(posData, vTexCoord).xy;
     float dir = texture(velData, vTexCoord).x;
@@ -38,14 +42,13 @@ void main(void){
     float is_active = life.z;
     
     if (is_active == 1.0 && age == 0.0) {
-        dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314 * 3;
+        dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314;
     } else {
-        float look_amt = 0.1;
-        float d = length(1/screen) * 5.0;
+        float look_amt = 0.314 / 12;
+        float d = length(1/screen) * 12;
         float maxdp = 0;
         float idxmax = -1;
         float dirmax = dir;
-        vec3 colormax = goal;
         for (int i = 0; i < look_segments; i++) {
             for (int j = 0; j < 2; j++) {
                 int mul;
@@ -56,24 +59,21 @@ void main(void){
                 }
                 float dirlook = dir + float(i) * look_amt * mul;
                 vec2 dir_p = look_dir(pos, dirlook, d);
-                //vec3 trail_dest = normalize(texture(trailData, dir_p).xyz);
-                //vec3 orig_dest = normalize(texture(origImageData, dir_p).xyz);
                 vec3 trail_dest = texture(trailData, dir_p).xyz;
                 vec3 orig_dest = texture(origImageData, dir_p).xyz;
-                vec3 dest = mix(normalize(trail_dest), trail_dest, 0.9);
-                goal = mix(normalize(goal), goal, 0.9);
-                float dot_p = abs(dot(goal, dest));
+                //vec3 dest = mix(normalize(trail_dest), trail_dest, 0.9);
+                //goal = mix(normalize(goal), goal, 0.9);
+                float dot_p = dot(goal, mix(orig_dest, trail_dest, 0.1));
                 if (dot_p > maxdp) {
                     maxdp = dot_p;
                     idxmax = i;
                     dirmax = dirlook;
-                    colormax = dest;
                 }
             }
         }
         
-        dirmax += (rand.x - 0.5) * 0.1;
-        dir = mix(dir, dirmax, 0.6);
+        //dirmax += (rand.x - 0.5) * 0.01;
+        dir = mix(dir, dirmax, 0.9);
     }
 
     

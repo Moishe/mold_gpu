@@ -71,12 +71,14 @@ public:
     ofShader    updateColor;
 	ofShader    updateVel;
     ofShader    updateRand;
+    ofShader    updateFood;
 
     pingPongBuffer lifePingPong;
 	pingPongBuffer posPingPong;
     pingPongBuffer colorPingPong;
 	pingPongBuffer velPingPong;
     pingPongBuffer randPingPong;
+    pingPongBuffer foodPingPong;
 
     ofShader    updateBlur;
     ofShader    updateRender;

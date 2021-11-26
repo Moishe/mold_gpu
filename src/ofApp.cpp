@@ -4,16 +4,16 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = true;
-    static const int seed_particles = 1024 * 1024;
+    static const int seed_particles = 4096 * 1024;
     
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 1280;
-    static constexpr float time_step_multiplier = 0.5;
+    static constexpr int num_particles_sqrt = 4096;
+    static constexpr float time_step_multiplier = 0.9;
 
-    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/eclipse.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/snowy-trees.jpg";
     
     static constexpr float min_age = 128;
     static constexpr float max_age = 256;
@@ -21,7 +21,7 @@ public:
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
-    static constexpr bool radial_fill = false;
+    static constexpr bool radial_fill = true;
     static constexpr float radial_fill_radius = 0.02;
     static constexpr float radial_fill_center_x = 0.5;
     static constexpr float radial_fill_center_y = 0.8;
@@ -34,11 +34,11 @@ public:
     static constexpr bool perform_total_refresh = false;
     static const int total_refresh_rate = 2048;
 
-    static constexpr bool save_roll = false;
+    static constexpr bool save_roll = true;
     static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
-    static constexpr int frame_increment = 8;
+    static constexpr int frame_increment = 4;
     static constexpr int max_frames = 64 * 32;
-    static constexpr char *file_prefix = "radial";
+    static constexpr char *file_prefix = "other";
 };
 
 //--------------------------------------------------------------
@@ -64,6 +64,7 @@ void ofApp::setup(){
     updateVel.load(shadersFolder + "/passthru.vert", shadersFolder + "/velUpdate.frag");
     updateLife.load(shadersFolder + "/passthru.vert", shadersFolder + "/lifeUpdate.frag");
     updateRand.load(shadersFolder + "/passthru.vert", shadersFolder + "/randUpdate.frag");
+    updateFood.load(shadersFolder + "/passthru.vert", shadersFolder + "/foodUpdate.frag");
 
     // shader that's applied to the render FBO to blur and fade
     updateBlur.load(shadersFolder + "/passthru.vert", shadersFolder + "/renderBlur.frag");
@@ -183,9 +184,9 @@ void ofApp::initializeBoard(int x, int y) {
         vel[i * 3 + 2] = 0;                             // vel.z (unused)
 
         ofFloatColor color = img.getColor(max(0, min(int(x * width), width - 1)), max(0, min(int(y * height), height - 1)));
-        colors[i * 3 + 0] = 0; //color.r;                    // self-evident
-        colors[i * 3 + 1] = 0; //color.g;
-        colors[i * 3 + 2] = 0; //color.b;
+        colors[i * 3 + 0] = color.r;                    // self-evident
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
 
         if (i < Config::seed_particles) {
             float lifespan = ofRandom(Config::max_age) + Config::min_age;
@@ -292,7 +293,7 @@ void ofApp::update() {
     updateRand.end();
     randPingPong.dst->end();
     randPingPong.swap();
-
+    
     // Blur it
     for (int i = 0; i < 2; i++) {
         renderFBO.dst->begin();
@@ -307,8 +308,16 @@ void ofApp::update() {
             renderFBO.swap();
         }
     }
-
-
+/*
+    foodPingPong.dst->begin();
+    ofClear(0);
+    updateFood.begin();
+    updateFood.setUniformTexture("posTex", foodPingPong.src->getTexture(), 0);
+    foodPingPong.src->draw(0, 0);
+    updateFood.end();
+    foodPingPong.dst->end();
+    foodPingPong.swap();
+*/
     renderFBO.dst->begin();
     updateRender.begin();
     updateRender.setUniformTexture("posTex", posPingPong.dst->getTexture(), 0);

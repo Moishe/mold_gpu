@@ -37,7 +37,7 @@ void main(void){
         if (random.x < 0.5) {
             is_active = 1;
             age = 0;
-            lifespan = 128 + int(256 * random.y); // magic number
+            lifespan = 1280 + int(2560 * random.y); // magic number
         }
     }
 
