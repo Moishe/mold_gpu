@@ -72,6 +72,8 @@ public:
 	ofShader    updateVel;
     ofShader    updateRand;
     ofShader    updateFood;
+    ofShader    updateBlur;
+    ofShader    updateRender;
 
     pingPongBuffer lifePingPong;
 	pingPongBuffer posPingPong;
@@ -79,11 +81,7 @@ public:
 	pingPongBuffer velPingPong;
     pingPongBuffer randPingPong;
     pingPongBuffer foodPingPong;
-
-    ofShader    updateBlur;
-    ofShader    updateRender;
-
-	pingPongBuffer renderFBO;
+    pingPongBuffer boardPingPong;
     
     ofImage img;
     
@@ -96,6 +94,8 @@ public:
     int     window_width, window_height;
     int     numParticlesSqrt;
 	int     numParticles;
+    
+    bool    showFood;
 
 	ofVboMesh mesh;
     

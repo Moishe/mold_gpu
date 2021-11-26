@@ -4,7 +4,7 @@
 uniform sampler2DRect velData;
 uniform sampler2DRect posData;
 uniform sampler2DRect colorData;
-uniform sampler2DRect origImageData;
+uniform sampler2DRect foodData;
 uniform sampler2DRect lifeData;
 uniform sampler2DRect trailData;
 uniform sampler2DRect randomData;
@@ -44,7 +44,7 @@ void main(void){
     if (is_active == 1.0 && age == 0.0) {
         dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314;
     } else {
-        float look_amt = 0.314 / 12;
+        float look_amt = 0.0314;
         float d = length(1/screen) * 12;
         float maxdp = 0;
         float idxmax = -1;
@@ -60,10 +60,10 @@ void main(void){
                 float dirlook = dir + float(i) * look_amt * mul;
                 vec2 dir_p = look_dir(pos, dirlook, d);
                 vec3 trail_dest = texture(trailData, dir_p).xyz;
-                vec3 orig_dest = texture(origImageData, dir_p).xyz;
+                vec3 food_dest = texture(foodData, dir_p).xyz;
                 //vec3 dest = mix(normalize(trail_dest), trail_dest, 0.9);
                 //goal = mix(normalize(goal), goal, 0.9);
-                float dot_p = dot(goal, mix(orig_dest, trail_dest, 0.1));
+                float dot_p = dot(goal, trail_dest) * length(food_dest);
                 if (dot_p > maxdp) {
                     maxdp = dot_p;
                     idxmax = i;
@@ -72,7 +72,7 @@ void main(void){
             }
         }
         
-        //dirmax += (rand.x - 0.5) * 0.01;
+        dirmax += (rand.x - 0.5) * 0.01;
         dir = mix(dir, dirmax, 0.9);
     }
 

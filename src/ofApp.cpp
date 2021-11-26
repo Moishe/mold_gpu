@@ -4,16 +4,16 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = true;
-    static const int seed_particles = 4096 * 1024;
+    static const int seed_particles = 4096;
     
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 4096;
+    static constexpr int num_particles_sqrt = 1024;
     static constexpr float time_step_multiplier = 0.9;
 
-    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/snowy-trees.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/red-moon.jpg";
     
     static constexpr float min_age = 128;
     static constexpr float max_age = 256;
@@ -21,12 +21,12 @@ public:
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
-    static constexpr bool radial_fill = true;
+    static constexpr bool radial_fill = false;
     static constexpr float radial_fill_radius = 0.02;
     static constexpr float radial_fill_center_x = 0.5;
     static constexpr float radial_fill_center_y = 0.8;
     
-    static constexpr float border = 0.02;
+    static constexpr float border = 0.3;
     
     static constexpr float offset_x = 0.5;
     static constexpr float offset_y = 0.5;
@@ -34,7 +34,7 @@ public:
     static constexpr bool perform_total_refresh = false;
     static const int total_refresh_rate = 2048;
 
-    static constexpr bool save_roll = true;
+    static constexpr bool save_roll = false;
     static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
     static constexpr int frame_increment = 4;
     static constexpr int max_frames = 64 * 32;
@@ -55,6 +55,8 @@ void ofApp::setup(){
     
     ofSetWindowShape(768, 768 * (float(height) / float(width)));
     
+    showFood = false;
+    
     string shadersFolder;
     shadersFolder="shaders_gl3";
     
@@ -64,7 +66,6 @@ void ofApp::setup(){
     updateVel.load(shadersFolder + "/passthru.vert", shadersFolder + "/velUpdate.frag");
     updateLife.load(shadersFolder + "/passthru.vert", shadersFolder + "/lifeUpdate.frag");
     updateRand.load(shadersFolder + "/passthru.vert", shadersFolder + "/randUpdate.frag");
-    updateFood.load(shadersFolder + "/passthru.vert", shadersFolder + "/foodUpdate.frag");
 
     // shader that's applied to the render FBO to blur and fade
     updateBlur.load(shadersFolder + "/passthru.vert", shadersFolder + "/renderBlur.frag");
@@ -73,6 +74,11 @@ void ofApp::setup(){
 	updateRender.setGeometryOutputType(GL_POINTS);
 	updateRender.setGeometryOutputCount(1);
     updateRender.load(shadersFolder+"/render.vert", shadersFolder+"/render.frag", shadersFolder+"/render.geom");
+    
+    updateFood.setGeometryInputType(GL_POINTS);
+    updateFood.setGeometryOutputType(GL_POINTS);
+    updateFood.setGeometryOutputCount(1);
+    updateFood.load(shadersFolder+"/renderFood.vert", shadersFolder+"/renderFood.frag", shadersFolder+"/renderFood.geom");
 
     // We have four textures that we pass to our shaders, that are all indexed to the same actor by x/y coordinates
     //   Position:   actor positions
@@ -96,16 +102,30 @@ void ofApp::setup(){
     initializeBoard();
     
     // Allocate the final
-    renderFBO.allocate(width, height, GL_RGB32F);
-    renderFBO.dst->begin();
+    boardPingPong.allocate(width, height, GL_RGB32F);
+    boardPingPong.dst->begin();
     // Seed the render buffer with the original image.
     if (Config::seed_orig_image) {
-        renderFBO.dst->getTexture().loadData(img.getPixels());
-        renderFBO.src->getTexture().loadData(img.getPixels());
+        boardPingPong.dst->getTexture().loadData(img.getPixels());
+        boardPingPong.src->getTexture().loadData(img.getPixels());
     } else {
         ofClear(0, 0, 0, 255);
     }
-    renderFBO.dst->end();
+    boardPingPong.dst->end();
+    
+    foodPingPong.allocate(width, height);
+    for (int i = 0; i < 2; i++) {
+        foodPingPong.dst->begin();
+        if (Config::seed_orig_image) {
+            foodPingPong.dst->getTexture().loadData(img.getPixels());
+        } else {
+            ofClear(0, 0, 0, 255);
+        }
+        foodPingPong.dst->end();
+        if (i == 0) {
+            foodPingPong.swap();
+        }
+    }
 
     mesh.setMode(OF_PRIMITIVE_POINTS);
     for(int x = 0; x < numParticlesSqrt; x++){
@@ -116,15 +136,15 @@ void ofApp::setup(){
     }
 
     for (int i = 0; i < 2; i++) {
-        renderFBO.dst->begin();
+        boardPingPong.dst->begin();
         updateBlur.begin();
-        updateBlur.setUniformTexture("image", renderFBO.src->getTexture(), 0);
+        updateBlur.setUniformTexture("image", boardPingPong.src->getTexture(), 0);
         updateBlur.setUniform1i("horizontal", i == 0);
         updateBlur.setUniform2f("screen", (float)width, (float)height);
-        renderFBO.src->draw(0,0);
+        boardPingPong.src->draw(0,0);
         updateBlur.end();
-        renderFBO.dst->end();
-        renderFBO.swap();
+        boardPingPong.dst->end();
+        boardPingPong.swap();
     }
 }
 
@@ -273,9 +293,9 @@ void ofApp::update() {
     updateVel.setUniformTexture("velData", velPingPong.src->getTexture(), 0);
     updateVel.setUniformTexture("posData", posPingPong.src->getTexture(), 1);
     updateVel.setUniformTexture("colorData", colorPingPong.src->getTexture(), 2);
-    updateVel.setUniformTexture("origImageData", img.getTexture(), 3);
+    updateVel.setUniformTexture("foodData", foodPingPong.src->getTexture(), 3);
     updateVel.setUniformTexture("lifeData", lifePingPong.src->getTexture(), 4);
-    updateVel.setUniformTexture("trailData", renderFBO.src->getTexture(), 5);
+    updateVel.setUniformTexture("trailData", boardPingPong.src->getTexture(), 5);
     updateVel.setUniformTexture("randomData", randPingPong.src->getTexture(), 6);
     updateVel.setUniform2f("screen", (float)width, (float)height);
     updateVel.setUniform1f("timestep", (float)timeStep);
@@ -296,29 +316,41 @@ void ofApp::update() {
     
     // Blur it
     for (int i = 0; i < 2; i++) {
-        renderFBO.dst->begin();
+        boardPingPong.dst->begin();
         updateBlur.begin();
-        updateBlur.setUniformTexture("image", renderFBO.src->getTexture(), 0);
+        updateBlur.setUniformTexture("image", boardPingPong.src->getTexture(), 0);
         updateBlur.setUniform1i("horizontal", i == 0);
         updateBlur.setUniform2f("screen", (float)width, (float)height);
-        renderFBO.src->draw(0,0);
+        boardPingPong.src->draw(0,0);
         updateBlur.end();
-        renderFBO.dst->end();
+        boardPingPong.dst->end();
         if (i == 0) {
-            renderFBO.swap();
+            boardPingPong.swap();
         }
     }
-/*
+
+    // Update the food texture; this informs where actors go
     foodPingPong.dst->begin();
-    ofClear(0);
     updateFood.begin();
-    updateFood.setUniformTexture("posTex", foodPingPong.src->getTexture(), 0);
-    foodPingPong.src->draw(0, 0);
+    updateFood.setUniformTexture("posTex", posPingPong.dst->getTexture(), 0);
+    updateFood.setUniform2f("screen", (float)width, (float)height);
+
+    ofPushStyle();
+    ofEnableBlendMode(OF_BLENDMODE_ALPHA);
+    ofSetColor(255);
+
+    mesh.draw();
+    
+    ofDisableBlendMode();
+    glEnd();
+    
     updateFood.end();
     foodPingPong.dst->end();
     foodPingPong.swap();
-*/
-    renderFBO.dst->begin();
+    ofPopStyle();
+
+    // Render the actual scene
+    boardPingPong.dst->begin();
     updateRender.begin();
     updateRender.setUniformTexture("posTex", posPingPong.dst->getTexture(), 0);
     updateRender.setUniformTexture("colorTex", colorPingPong.dst->getTexture(), 1);
@@ -334,15 +366,15 @@ void ofApp::update() {
     glEnd();
     
     updateRender.end();
-    renderFBO.dst->end();
-    renderFBO.swap();
+    boardPingPong.dst->end();
+    boardPingPong.swap();
     ofPopStyle();
     
     static int step = 0;
     if (Config::save_roll) {
         if (step % Config::frame_increment == 0) {
             ofPixels pixels;
-            renderFBO.src->getTexture().readToPixels(pixels);
+            boardPingPong.src->getTexture().readToPixels(pixels);
             ofImage img(pixels);
             std::stringstream ss;
             ss << Config::frame_dir << "/" << Config::file_prefix << "-";
@@ -366,10 +398,17 @@ void ofApp::update() {
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    ofBackground(0);
-    
-    ofSetColor(255,255,255);
-    renderFBO.dst->draw(0,0, ofGetWindowWidth(), ofGetWindowHeight());
+    static int step = 0;
+    if (step++ % 1 == 0) {
+        ofBackground(0);
+        
+        ofSetColor(255,255,255);
+        if (showFood) {
+            foodPingPong.dst->draw(0,0, ofGetWindowWidth(), ofGetWindowHeight());
+        } else {
+            boardPingPong.dst->draw(0,0, ofGetWindowWidth(), ofGetWindowHeight());
+        }
+    }
     int active_cells = 0;
     int cells_in_bounds = 0;
 /*
@@ -391,7 +430,7 @@ void ofApp::draw(){
             cells_in_bounds++;
         }
     }
-*/
+ */
     ofSetColor(255);
     ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()) + ": " + ofToString(active_cells) + ", " + ofToString(cells_in_bounds), 15, 15);
 }
@@ -402,12 +441,14 @@ void ofApp::keyPressed(int key){
         initializeBoard();
     } else if (key == 's') {
         ofPixels pix;
-        renderFBO.dst->getTexture().readToPixels(pix);
+        boardPingPong.dst->getTexture().readToPixels(pix);
         ofImage img(pix);
         std::string filename = "/Users/moishe/gen-images/saved-image-foobar";
         //filename.append(gen_random(5));
         filename.append(".jpg");
         img.save(filename);
+    } else if (key == 'f') {
+        showFood = !showFood;
     }
 }
 
