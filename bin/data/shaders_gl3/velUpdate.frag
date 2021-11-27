@@ -44,8 +44,8 @@ void main(void){
     if (is_active == 1.0 && age == 0.0) {
         dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314;
     } else {
-        float look_amt = 0.0314;
-        float d = length(1/screen) * 12;
+        float look_amt = 0.314 / 10;
+        float d = length(1/screen) * 17;
         float maxdp = 0;
         float idxmax = -1;
         float dirmax = dir;
@@ -61,9 +61,10 @@ void main(void){
                 vec2 dir_p = look_dir(pos, dirlook, d);
                 vec3 trail_dest = texture(trailData, dir_p).xyz;
                 vec3 food_dest = texture(foodData, dir_p).xyz;
-                //vec3 dest = mix(normalize(trail_dest), trail_dest, 0.9);
+                //vec3 dest = mix(food_dest, trail_dest, 0.9);
                 //goal = mix(normalize(goal), goal, 0.9);
-                float dot_p = dot(goal, trail_dest) * length(food_dest);
+                float fd_length = max(0.0001, length(food_dest));
+                float dot_p = dot(goal, trail_dest) * fd_length;
                 if (dot_p > maxdp) {
                     maxdp = dot_p;
                     idxmax = i;
@@ -72,8 +73,8 @@ void main(void){
             }
         }
         
-        dirmax += (rand.x - 0.5) * 0.01;
-        dir = mix(dir, dirmax, 0.9);
+        //dirmax += (rand.x - 0.5) * 0.01;
+        dir = mix(dir, dirmax, 0.99);
     }
 
     

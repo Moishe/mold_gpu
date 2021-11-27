@@ -73,6 +73,7 @@ public:
     ofShader    updateRand;
     ofShader    updateFood;
     ofShader    updateBlur;
+    ofShader    updateFoodBlur;
     ofShader    updateRender;
 
     pingPongBuffer lifePingPong;

@@ -4,16 +4,17 @@
 class Config {
 public:
     static constexpr bool seed_orig_image = true;
-    static const int seed_particles = 4096;
+    static constexpr bool seed_orig_image_for_food = false;
+    static const int seed_particles = 1024;
     
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 1024;
+    static constexpr int num_particles_sqrt = 1280;
     static constexpr float time_step_multiplier = 0.9;
 
-    static constexpr char *imgName = "/Volumes/fast-external/photos-to-mold/red-moon.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/new-photos-to-mold/burning-bush-2.jpg";
     
     static constexpr float min_age = 128;
     static constexpr float max_age = 256;
@@ -22,11 +23,11 @@ public:
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
     static constexpr bool radial_fill = false;
-    static constexpr float radial_fill_radius = 0.02;
+    static constexpr float radial_fill_radius = 0.05;
     static constexpr float radial_fill_center_x = 0.5;
-    static constexpr float radial_fill_center_y = 0.8;
+    static constexpr float radial_fill_center_y = 0.5;
     
-    static constexpr float border = 0.3;
+    static constexpr float border = 0.02;
     
     static constexpr float offset_x = 0.5;
     static constexpr float offset_y = 0.5;
@@ -35,10 +36,10 @@ public:
     static const int total_refresh_rate = 2048;
 
     static constexpr bool save_roll = false;
-    static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
-    static constexpr int frame_increment = 4;
+    static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/dark-aspen";
+    static constexpr int frame_increment = 16;
     static constexpr int max_frames = 64 * 32;
-    static constexpr char *file_prefix = "other";
+    static constexpr char *file_prefix = "second";
 };
 
 //--------------------------------------------------------------
@@ -67,8 +68,11 @@ void ofApp::setup(){
     updateLife.load(shadersFolder + "/passthru.vert", shadersFolder + "/lifeUpdate.frag");
     updateRand.load(shadersFolder + "/passthru.vert", shadersFolder + "/randUpdate.frag");
 
-    // shader that's applied to the render FBO to blur and fade
+    // shader that's applied to the render pingpong to blur and fade
     updateBlur.load(shadersFolder + "/passthru.vert", shadersFolder + "/renderBlur.frag");
+    
+    // shader that's applied to the food pingpong to blur and fade
+    updateFoodBlur.load(shadersFolder + "/passthru.vert", shadersFolder + "/renderFoodBlur.frag");
     
     updateRender.setGeometryInputType(GL_POINTS);
 	updateRender.setGeometryOutputType(GL_POINTS);
@@ -116,10 +120,10 @@ void ofApp::setup(){
     foodPingPong.allocate(width, height);
     for (int i = 0; i < 2; i++) {
         foodPingPong.dst->begin();
-        if (Config::seed_orig_image) {
+        if (Config::seed_orig_image_for_food) {
             foodPingPong.dst->getTexture().loadData(img.getPixels());
         } else {
-            ofClear(0, 0, 0, 255);
+            ofClear(255, 255, 255, 255);
         }
         foodPingPong.dst->end();
         if (i == 0) {
@@ -145,6 +149,16 @@ void ofApp::setup(){
         updateBlur.end();
         boardPingPong.dst->end();
         boardPingPong.swap();
+
+        foodPingPong.dst->begin();
+        updateFoodBlur.begin();
+        updateFoodBlur.setUniformTexture("image", boardPingPong.src->getTexture(), 0);
+        updateFoodBlur.setUniform1i("horizontal", i == 0);
+        updateFoodBlur.setUniform2f("screen", (float)width, (float)height);
+        foodPingPong.src->draw(0,0);
+        updateFoodBlur.end();
+        foodPingPong.dst->end();
+        foodPingPong.swap();
     }
 }
 
@@ -204,7 +218,7 @@ void ofApp::initializeBoard(int x, int y) {
         vel[i * 3 + 2] = 0;                             // vel.z (unused)
 
         ofFloatColor color = img.getColor(max(0, min(int(x * width), width - 1)), max(0, min(int(y * height), height - 1)));
-        colors[i * 3 + 0] = color.r;                    // self-evident
+        colors[i * 3 + 0] = color.r + 0.3;                    // self-evident
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
 
@@ -215,7 +229,7 @@ void ofApp::initializeBoard(int x, int y) {
             } else {
                 life[i * 3 + 0] = lifespan;                     // life.x -> lifespan
             }
-            life[i * 3 + 1] = 1.0;                          // life.y -> age
+            life[i * 3 + 1] = 2.0;                          // life.y -> age
             life[i * 3 + 2] = 1.0;                          // life.z -> active (0 == false, 1 == true)
         } else {
             // inactive actor
@@ -255,7 +269,7 @@ void ofApp::update() {
     updateLife.setUniformTexture("prevPosData", posPingPong.src->getTexture(), 1);
     updateLife.setUniformTexture("randomData", randPingPong.src->getTexture(), 2);
     updateLife.setUniformTexture("colorData", colorPingPong.src->getTexture(), 3);
-    updateLife.setUniformTexture("origImageData", img.getTexture(), 4);
+    updateLife.setUniformTexture("foodData", foodPingPong.src->getTexture(), 4);
     lifePingPong.src->draw(0, 0);
     updateLife.end();
     lifePingPong.dst->end();
@@ -327,6 +341,21 @@ void ofApp::update() {
         if (i == 0) {
             boardPingPong.swap();
         }
+        
+        foodPingPong.dst->begin();
+        updateFoodBlur.begin();
+        updateFoodBlur.setUniformTexture("image", boardPingPong.src->getTexture(), 0);
+        updateFoodBlur.setUniform1i("horizontal", i == 0);
+        updateFoodBlur.setUniform2f("screen", (float)width, (float)height);
+        ofPushStyle();
+        ofEnableBlendMode(OF_BLENDMODE_ALPHA);
+        foodPingPong.src->draw(0,0);
+        updateFoodBlur.end();
+        foodPingPong.dst->end();
+        if (i == 0) {
+            foodPingPong.swap();
+        }
+        ofPopStyle();
     }
 
     // Update the food texture; this informs where actors go
@@ -336,7 +365,7 @@ void ofApp::update() {
     updateFood.setUniform2f("screen", (float)width, (float)height);
 
     ofPushStyle();
-    ofEnableBlendMode(OF_BLENDMODE_ALPHA);
+    ofEnableBlendMode(OF_BLENDMODE_SUBTRACT);
     ofSetColor(255);
 
     mesh.draw();
@@ -411,7 +440,7 @@ void ofApp::draw(){
     }
     int active_cells = 0;
     int cells_in_bounds = 0;
-/*
+    /*
     ofFloatPixels pixels;
     lifePingPong.src->getTexture().readToPixels(pixels);
     
@@ -430,7 +459,7 @@ void ofApp::draw(){
             cells_in_bounds++;
         }
     }
- */
+    */
     ofSetColor(255);
     ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()) + ": " + ofToString(active_cells) + ", " + ofToString(cells_in_bounds), 15, 15);
 }
