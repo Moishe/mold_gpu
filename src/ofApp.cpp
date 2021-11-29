@@ -14,7 +14,7 @@ public:
     static constexpr int num_particles_sqrt = 1280;
     static constexpr float time_step_multiplier = 0.9;
 
-    static constexpr char *imgName = "/Volumes/fast-external/new-photos-to-mold/solo-tree.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/new-photos-to-mold/bradley-palmer-trees.jpg";
     
     static constexpr float min_age = 128;
     static constexpr float max_age = 256;
@@ -500,7 +500,7 @@ void ofApp::keyPressed(int key){
     if (key == ' ') {
         initializeBoard();
     } else if (key == 's') {
-        static string unique_id = gen_random(5);
+        string unique_id = gen_random(5);
 
         ofPixels pix;
         boardPingPong.dst->getTexture().readToPixels(pix);
@@ -512,9 +512,9 @@ void ofApp::keyPressed(int key){
         
         foodPingPong.dst->getTexture().readToPixels(pix);
         ofImage imgFood(pix);
-        filename = "/Users/moishe/gen-images/s-mask-";
+        filename = "/Users/moishe/gen-images/s-";
         filename.append(unique_id);
-        filename.append(".jpg");
+        filename.append("-mask.jpg");
         imgFood.save(filename);
     } else if (key == 'f') {
         showFood = !showFood;

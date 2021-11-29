@@ -31,6 +31,6 @@ void main() {
             result += texture(image, vTexCoord - vec2(0.0, tex_offset.y * i)).rgb * weight[i];
         }
     }
-    result = max(result - 0.000009, vec3(0,0,0));
+    result = max(result - 0.000002, vec3(0,0,0));
     vFragColor = vec4(result, 1.0);
 }
