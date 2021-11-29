@@ -5,7 +5,7 @@ class Config {
 public:
     static constexpr bool seed_orig_image = true;
     static constexpr bool seed_orig_image_for_food = false;
-    static const int seed_particles = 1024;
+    static const int seed_particles = 1024 * 512;
     
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
@@ -14,7 +14,7 @@ public:
     static constexpr int num_particles_sqrt = 1280;
     static constexpr float time_step_multiplier = 0.9;
 
-    static constexpr char *imgName = "/Volumes/fast-external/new-photos-to-mold/burning-bush-2.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/new-photos-to-mold/solo-tree.jpg";
     
     static constexpr float min_age = 128;
     static constexpr float max_age = 256;
@@ -23,11 +23,11 @@ public:
     static constexpr float seed_particle_y = 0; //0.782; //0.365; //0.351; //0.826;;
     
     static constexpr bool radial_fill = false;
-    static constexpr float radial_fill_radius = 0.05;
-    static constexpr float radial_fill_center_x = 0.5;
-    static constexpr float radial_fill_center_y = 0.5;
+    static constexpr float radial_fill_radius = 0.03;
+    static constexpr float radial_fill_center_x = 0.8;
+    static constexpr float radial_fill_center_y = 0.9;
     
-    static constexpr float border = 0.02;
+    static constexpr float border = 0.01;
     
     static constexpr float offset_x = 0.5;
     static constexpr float offset_y = 0.5;
@@ -36,10 +36,13 @@ public:
     static const int total_refresh_rate = 2048;
 
     static constexpr bool save_roll = false;
-    static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/dark-aspen";
-    static constexpr int frame_increment = 16;
+    static constexpr char *frame_dir = "/Volumes/fast-external/video-frames/lit-trees";
+    static constexpr int frame_increment = 10;
     static constexpr int max_frames = 64 * 32;
-    static constexpr char *file_prefix = "second";
+    static constexpr char *file_prefix = "first";
+    
+    static constexpr bool save_mask = true;
+    static constexpr int mask_increment = 100;
 };
 
 //--------------------------------------------------------------
@@ -117,7 +120,7 @@ void ofApp::setup(){
     }
     boardPingPong.dst->end();
     
-    foodPingPong.allocate(width, height);
+    foodPingPong.allocate(width, height, GL_RGB32F);
     for (int i = 0; i < 2; i++) {
         foodPingPong.dst->begin();
         if (Config::seed_orig_image_for_food) {
@@ -218,7 +221,7 @@ void ofApp::initializeBoard(int x, int y) {
         vel[i * 3 + 2] = 0;                             // vel.z (unused)
 
         ofFloatColor color = img.getColor(max(0, min(int(x * width), width - 1)), max(0, min(int(y * height), height - 1)));
-        colors[i * 3 + 0] = color.r + 0.3;                    // self-evident
+        colors[i * 3 + 0] = color.r;                    // self-evident
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
 
@@ -258,6 +261,21 @@ void ofApp::allocateAndLoad(pingPongBuffer &buf, vector<float> &data) {
 void ofApp::loadData(pingPongBuffer &buf, vector<float> &data) {
     buf.src->getTexture().loadData(data.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
     buf.dst->getTexture().loadData(data.data(), numParticlesSqrt, numParticlesSqrt, GL_RGB);
+}
+
+std::string gen_random(const int len) {
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+    std::string tmp_s;
+    tmp_s.reserve(len);
+
+    for (int i = 0; i < len; ++i) {
+        tmp_s += alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+    
+    return tmp_s;
 }
 
 //--------------------------------------------------------------
@@ -365,7 +383,7 @@ void ofApp::update() {
     updateFood.setUniform2f("screen", (float)width, (float)height);
 
     ofPushStyle();
-    ofEnableBlendMode(OF_BLENDMODE_SUBTRACT);
+    ofEnableBlendMode(OF_BLENDMODE_ALPHA);
     ofSetColor(255);
 
     mesh.draw();
@@ -414,6 +432,19 @@ void ofApp::update() {
             img.save(fullname);
         }
         
+        if (Config::save_mask && step % Config::mask_increment == 0) {
+            ofPixels pixels;
+            foodPingPong.src->getTexture().readToPixels(pixels);
+            ofImage img(pixels);
+            std::stringstream ss;
+            ss << Config::frame_dir << "/" << Config::file_prefix << "-mask-";
+            ss << std::setw(10) << std::setfill('0') << std::to_string(int(step / Config::mask_increment));
+            ss << ".jpg";
+            
+            string fullname = ss.str();
+            img.save(fullname);
+        }
+
         if (step > Config::max_frames * Config::frame_increment) {
             ofExit();
         }
@@ -461,7 +492,7 @@ void ofApp::draw(){
     }
     */
     ofSetColor(255);
-    ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()) + ": " + ofToString(active_cells) + ", " + ofToString(cells_in_bounds), 15, 15);
+    ofDrawBitmapString("Fps: " + ofToString( ofGetFrameRate()) + ": " + ofToString(active_cells) + ", " + ofToString(cells_in_bounds) + " (" + ofToString(step) + ")", 15, 15);
 }
 
 //--------------------------------------------------------------
@@ -469,13 +500,22 @@ void ofApp::keyPressed(int key){
     if (key == ' ') {
         initializeBoard();
     } else if (key == 's') {
+        static string unique_id = gen_random(5);
+
         ofPixels pix;
         boardPingPong.dst->getTexture().readToPixels(pix);
         ofImage img(pix);
-        std::string filename = "/Users/moishe/gen-images/saved-image-foobar";
-        //filename.append(gen_random(5));
+        std::string filename = "/Users/moishe/gen-images/s-";
+        filename.append(unique_id);
         filename.append(".jpg");
         img.save(filename);
+        
+        foodPingPong.dst->getTexture().readToPixels(pix);
+        ofImage imgFood(pix);
+        filename = "/Users/moishe/gen-images/s-mask-";
+        filename.append(unique_id);
+        filename.append(".jpg");
+        imgFood.save(filename);
     } else if (key == 'f') {
         showFood = !showFood;
     }

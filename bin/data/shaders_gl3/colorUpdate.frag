@@ -25,7 +25,7 @@ void main(void) {
     if (age == 0.0 && is_active == 1.0) {
         vFragColor = vec4(sharedActorGoal, 1);
     } else if (age == 1.0 && is_active == 1.0) {
-        vFragColor = vec4(origColor * 1.1, 1.0);
+        vFragColor = vec4(origColor * 1.3, 1.0);
 //    } else if (age == 2.0 && is_active == 1.0) {
 //        vFragColor = goalColor;
     } else {

@@ -17,7 +17,7 @@ in vec2 vTexCoord;
 
 out vec4 vFragColor;
 
-const float look_segments = 10;
+const float look_segments = 7;
 
 vec2 look_dir(vec2 pos, float dir, float d) {
     return vec2(
@@ -42,13 +42,13 @@ void main(void){
     float is_active = life.z;
     
     if (is_active == 1.0 && age == 0.0) {
-        dir = texture(velData, pos).x + (rand.x - 0.5) * 0.314;
+        dir = texture(velData, pos).x + (rand.x - 0.5) * 0.000314;
     } else {
-        float look_amt = 0.314 / 10;
-        float d = length(1/screen) * 17;
+        float look_amt = 0.314 / 6;
+        float d = length(1/screen) * 7;
         float maxdp = 0;
         float idxmax = -1;
-        float dirmax = dir;
+        float dirmax = dir + (rand.x - 0.5) * 0.00001;
         for (int i = 0; i < look_segments; i++) {
             for (int j = 0; j < 2; j++) {
                 int mul;
@@ -63,8 +63,11 @@ void main(void){
                 vec3 food_dest = texture(foodData, dir_p).xyz;
                 //vec3 dest = mix(food_dest, trail_dest, 0.9);
                 //goal = mix(normalize(goal), goal, 0.9);
-                float fd_length = max(0.0001, length(food_dest));
-                float dot_p = dot(goal, trail_dest) * fd_length;
+                float fd_length = length(food_dest);
+                float dot_p = sigmoid(dot(goal, trail_dest)) + sigmoid(pow(length(trail_dest), 2));
+                if (fd_length > 0.001) {
+                    dot_p *= fd_length;
+                }
                 if (dot_p > maxdp) {
                     maxdp = dot_p;
                     idxmax = i;

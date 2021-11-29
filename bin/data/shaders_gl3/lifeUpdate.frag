@@ -27,10 +27,10 @@ void main(void){
         should_die = true;
     }
     */
-    if (age > 2 && length(food) < 0.1) {
-        should_die = true;
+
+    if (age == 2) {
+        lifespan *= length(food);
     }
-    
     if (is_active == 1.0 && (age == 0 || !should_die)) {
         age += 1.0;
         if (age >= lifespan) {
