@@ -5,18 +5,18 @@ class Config {
 public:
     static constexpr bool seed_orig_image = true;
     static constexpr bool seed_orig_image_for_food = false;
-    static const int seed_particles = 1024 * 512;
+    static const int seed_particles = 1024 * 1024;
     
     static constexpr int min_color_vector_length = 16;
     static constexpr int pixel_step = 1;
     static constexpr float direction_offset = PI;
     
-    static constexpr int num_particles_sqrt = 1280;
+    static constexpr int num_particles_sqrt = 2048;
     static constexpr float time_step_multiplier = 0.9;
 
-    static constexpr char *imgName = "/Volumes/fast-external/new-photos-to-mold/bradley-palmer-trees.jpg";
+    static constexpr char *imgName = "/Volumes/fast-external/new-photos-to-mold/aspen-dark-2.jpg";
     
-    static constexpr float min_age = 128;
+    static constexpr float min_age = 32;
     static constexpr float max_age = 256;
     
     static constexpr float seed_particle_x = 0; //0.459; //0.664; //0.507; //0.493;;
@@ -24,8 +24,8 @@ public:
     
     static constexpr bool radial_fill = false;
     static constexpr float radial_fill_radius = 0.03;
-    static constexpr float radial_fill_center_x = 0.8;
-    static constexpr float radial_fill_center_y = 0.9;
+    static constexpr float radial_fill_center_x = 0.65;
+    static constexpr float radial_fill_center_y = 0.7;
     
     static constexpr float border = 0.01;
     
